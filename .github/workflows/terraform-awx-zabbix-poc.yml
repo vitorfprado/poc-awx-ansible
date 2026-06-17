@@ -186,8 +186,29 @@ jobs:
       - name: Terraform destroy (action=destroy)
         if: ${{ inputs.action == 'destroy' }}
         run: |
+          set +e
           echo "::warning title=DESTROY::Aplicando plano de DESTRUICAO..."
           terraform apply -no-color -auto-approve tfplan
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            # Causa comum: ENIs orfas do VPC CNI (status 'available') deixadas pela
+            # terminacao dos nodes do EKS travam a delecao das subnets
+            # (DependencyViolation). Remove as ENIs desanexadas e tenta de novo.
+            echo "::warning::Destroy falhou. Limpando ENIs orfas do VPC CNI e repetindo..."
+            VPC=$(terraform output -raw vpc_id 2>/dev/null || true)
+            if [ -n "$VPC" ]; then
+              for eni in $(aws ec2 describe-network-interfaces \
+                  --filters "Name=vpc-id,Values=$VPC" "Name=status,Values=available" \
+                  --query "NetworkInterfaces[].NetworkInterfaceId" --output text); do
+                echo "  removendo ENI orfa $eni"
+                aws ec2 delete-network-interface --network-interface-id "$eni" || true
+              done
+            fi
+            # Replan + destroy (o plano salvo fica obsoleto apos a delecao parcial).
+            terraform destroy -no-color -auto-approve
+            rc=$?
+          fi
+          exit $rc
 
       # Exibe outputs uteis para integracao com AWX/Ansible apos o apply.
       - name: Exibir outputs (action=apply)
