@@ -107,9 +107,26 @@ secrets de access key** — apenas variables:
 | `ZABBIX_SERVER_ADDRESS` | Opcional | Endereço do Zabbix Server central. |
 | `ZABBIX_SERVER_CIDR` | Opcional | CIDR do Server central (regra de egress do Proxy). |
 | `AGENT_COUNT` | Opcional | Quantidade de Zabbix Agents. Default `2`. |
+| `EKS_ADMIN_PRINCIPAL_ARNS` | Opcional | ARNs (separados por vírgula) com admin no cluster via access entry. Default no workflow: `arn:aws:iam::650687537445:user/vitor.prado`. |
 
 As variables definidas são transformadas em um `ci.auto.tfvars` em tempo de execução;
 as não definidas mantêm os defaults do consumer.
+
+### Acesso admin ao EKS — automático no primeiro apply
+
+O acesso de admin ao cluster (para `kubectl` local) é criado **pelo Terraform no
+Stage 1**, automaticamente, já no primeiro `apply`:
+
+- A **access entry** é um recurso Terraform (`var.eks_admin_principal_arns` →
+  módulo `eks`), associada ao **cluster que o próprio Terraform cria** — o nome do
+  cluster é coletado automaticamente, sem hardcode.
+- O **principal** vem do default do workflow (`EKS_ADMIN_PRINCIPAL_ARNS`), então não
+  é preciso cadastrar nada para o seu usuário receber acesso no primeiro run.
+- Gerenciado pelo ciclo de vida: `apply` cria, `destroy` remove.
+
+> Não confundir com o acesso do **pipeline**: o Stage 2 usa a role OIDC, que já é
+> admin do cluster por ser a *creator* (`bootstrap_cluster_creator_admin_permissions`).
+> A access entry acima é para principals **adicionais** (ex.: seu usuário IAM).
 
 ## Como executar
 

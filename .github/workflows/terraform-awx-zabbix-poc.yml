@@ -109,7 +109,10 @@ jobs:
           V_ZBX_ADDR: ${{ vars.ZABBIX_SERVER_ADDRESS }}
           V_ZBX_CIDR: ${{ vars.ZABBIX_SERVER_CIDR }}
           V_AGENT_COUNT: ${{ vars.AGENT_COUNT }}
-          V_EKS_ADMINS: ${{ vars.EKS_ADMIN_PRINCIPAL_ARNS }}
+          # Default: libera o usuario da POC ja no primeiro apply (kubectl local),
+          # sem precisar cadastrar a variable. Sobrescreva com a repo variable
+          # EKS_ADMIN_PRINCIPAL_ARNS (lista separada por virgula) para outros ARNs.
+          V_EKS_ADMINS: ${{ vars.EKS_ADMIN_PRINCIPAL_ARNS || 'arn:aws:iam::650687537445:user/vitor.prado' }}
         run: |
           f=ci.auto.tfvars
           : > "$f"
