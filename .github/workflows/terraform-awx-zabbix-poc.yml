@@ -1,0 +1,167 @@
+name: Terraform - awx-zabbix-poc
+
+# Execucao APENAS manual/sob demanda. Nao ha trigger de push/PR, portanto
+# nenhum apply ou destroy pode ocorrer automaticamente por push.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Acao do Terraform a executar"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - apply
+          - destroy
+      confirm_destroy:
+        description: 'Confirmacao de destroy: digite exatamente "destroy" (obrigatorio quando action=destroy)'
+        type: string
+        required: false
+        default: ""
+
+# Evita execucoes concorrentes sobre o mesmo state. Nao cancela em andamento
+# (cancelar uma operacao de state pode deixar lock/registro inconsistente).
+concurrency:
+  group: terraform-awx-zabbix-poc
+  cancel-in-progress: false
+
+# id-token: write e necessario para o fluxo OIDC com a AWS (sem access keys).
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TERRAFORM_VERSION: "1.14.4"
+  WORKDIR: iac/awx-zabbix-poc
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  # Default do bucket de state; sobrescreva com a variable TF_STATE_BUCKET se mudar.
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'tfstate-awx-zabbix-poc-650687537445' }}
+
+jobs:
+  terraform:
+    name: "Terraform ${{ inputs.action }}"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: iac/awx-zabbix-poc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Falha cedo se for destroy sem a confirmacao correta.
+      - name: Validar confirmacao de destroy
+        if: ${{ inputs.action == 'destroy' }}
+        run: |
+          if [ "${{ inputs.confirm_destroy }}" != "destroy" ]; then
+            echo "::error::action=destroy exige confirm_destroy == 'destroy'. Abortando."
+            exit 1
+          fi
+          echo "Confirmacao de destroy aceita."
+
+      # Autenticacao via OIDC: o GitHub emite um token de identidade que a AWS
+      # troca por credenciais temporarias ao assumir a role. Sem access keys.
+      - name: Configurar credenciais AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          role-session-name: gha-terraform-awx-zabbix-poc
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt -check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: |
+          terraform init -no-color \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=awx-zabbix-poc/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      # Monta um ci.auto.tfvars apenas com as variaveis efetivamente definidas
+      # como repository variables, preservando os defaults (e o null) das demais.
+      - name: Gerar ci.auto.tfvars a partir de repository variables
+        env:
+          V_AWS_REGION: ${{ env.AWS_REGION }}
+          V_SSH_KEY_NAME: ${{ vars.SSH_KEY_NAME }}
+          V_ZBX_ADDR: ${{ vars.ZABBIX_SERVER_ADDRESS }}
+          V_ZBX_CIDR: ${{ vars.ZABBIX_SERVER_CIDR }}
+          V_AGENT_COUNT: ${{ vars.AGENT_COUNT }}
+        run: |
+          f=ci.auto.tfvars
+          : > "$f"
+          [ -n "$V_AWS_REGION" ]   && printf 'aws_region = "%s"\n'            "$V_AWS_REGION"   >> "$f"
+          [ -n "$V_SSH_KEY_NAME" ] && printf 'ssh_key_name = "%s"\n'          "$V_SSH_KEY_NAME" >> "$f"
+          [ -n "$V_ZBX_ADDR" ]     && printf 'zabbix_server_address = "%s"\n' "$V_ZBX_ADDR"     >> "$f"
+          [ -n "$V_ZBX_CIDR" ]     && printf 'zabbix_server_cidr = "%s"\n'    "$V_ZBX_CIDR"     >> "$f"
+          [ -n "$V_AGENT_COUNT" ]  && printf 'agent_count = %s\n'             "$V_AGENT_COUNT"  >> "$f"
+          echo "----- ci.auto.tfvars -----"
+          cat "$f"
+
+      - name: "Banner: DESTRUICAO de infraestrutura"
+        if: ${{ inputs.action == 'destroy' }}
+        run: |
+          echo "::warning title=DESTROY::Este job vai DESTRUIR a infra da POC awx-zabbix-poc"
+          echo "############################################################"
+          echo "#                                                          #"
+          echo "#   ATENCAO: DESTRUICAO DE INFRAESTRUTURA (action=destroy)  #"
+          echo "#                                                          #"
+          echo "#   Serao REMOVIDOS: VPC, EKS (cluster + nodes),           #"
+          echo "#   EC2 do Zabbix Proxy e EC2s dos Zabbix Agents,          #"
+          echo "#   alem de SGs, IAM e demais recursos da POC.             #"
+          echo "#                                                          #"
+          echo "############################################################"
+
+      # Sempre gera um plano. Para destroy, gera um plano de destruicao.
+      - name: Terraform plan
+        run: |
+          if [ "${{ inputs.action }}" = "destroy" ]; then
+            echo "Gerando plano de DESTRUICAO (-destroy)..."
+            terraform plan -no-color -destroy -out=tfplan
+          else
+            terraform plan -no-color -out=tfplan
+          fi
+
+      # apply e destroy aplicam o plano salvo (tfplan) gerado no passo anterior.
+      - name: Terraform apply (action=apply)
+        if: ${{ inputs.action == 'apply' }}
+        run: terraform apply -no-color -auto-approve tfplan
+
+      - name: Terraform destroy (action=destroy)
+        if: ${{ inputs.action == 'destroy' }}
+        run: |
+          echo "::warning title=DESTROY::Aplicando plano de DESTRUICAO..."
+          terraform apply -no-color -auto-approve tfplan
+
+      # Exibe outputs uteis para integracao com AWX/Ansible apos o apply.
+      - name: Exibir outputs (action=apply)
+        if: ${{ inputs.action == 'apply' }}
+        run: |
+          {
+            echo "## Outputs - awx-zabbix-poc"
+            echo ""
+            echo "- **EKS cluster:** \`$(terraform output -raw eks_cluster_name)\`"
+            echo "- **Atualizar kubeconfig:** \`$(terraform output -raw kubeconfig_command)\`"
+            echo "- **Zabbix Proxy (IP privado):** \`$(terraform output -raw zabbix_proxy_private_ip)\`"
+            echo ""
+            echo "**Zabbix Agents (IPs privados):**"
+            echo ""
+            echo '```json'
+            terraform output -json zabbix_agent_private_ips
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

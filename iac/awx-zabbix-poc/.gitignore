@@ -1,0 +1,13 @@
+# Terraform working files
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Variáveis com valores reais (use terraform.tfvars.example como referência)
+terraform.tfvars
+*.auto.tfvars
+
+# Config de backend com valores reais (use backend.hcl.example como referência)
+backend.hcl

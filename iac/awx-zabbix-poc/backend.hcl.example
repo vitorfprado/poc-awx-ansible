@@ -1,0 +1,9 @@
+# Exemplo de configuracao parcial do backend S3 para uso LOCAL.
+# Copie para backend.hcl e rode: terraform init -backend-config=backend.hcl
+#
+# O bucket S3 precisa existir previamente (criado uma unica vez, fora desta POC).
+
+bucket       = "tfstate-awx-zabbix-poc-650687537445"
+key          = "awx-zabbix-poc/terraform.tfstate"
+region       = "us-east-1"
+use_lockfile = true

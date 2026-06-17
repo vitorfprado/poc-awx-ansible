@@ -1,0 +1,47 @@
+###############################################################################
+# Exemplo de configuracao da POC awx-zabbix-poc.
+# Copie para terraform.tfvars e ajuste os valores.
+###############################################################################
+
+# --- Identificacao -----------------------------------------------------------
+project_name = "awx-zabbix-poc"
+environment  = "poc"
+aws_region   = "us-east-1"
+
+tags = {
+  Owner = "vitorfprado"
+  Poc   = "awx-zabbix"
+}
+
+# --- Rede --------------------------------------------------------------------
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.0.0/20", "10.0.16.0/20"]
+private_subnet_cidrs = ["10.0.48.0/20", "10.0.64.0/20"]
+# azs                = ["us-east-1a", "us-east-1b"] # opcional; vazio = automatico
+single_nat_gateway = true
+
+# --- EKS (AWX) ---------------------------------------------------------------
+cluster_version         = "1.32"
+eks_node_instance_types = ["t3.large"]
+eks_node_desired_size   = 2
+eks_node_min_size       = 1
+eks_node_max_size       = 3
+
+eks_endpoint_public_access = true
+# Restrinja ao seu IP em vez de 0.0.0.0/0 sempre que possivel:
+eks_public_access_cidrs = ["0.0.0.0/0"]
+
+# --- EC2s Zabbix -------------------------------------------------------------
+# Nome de um key pair EC2 ja existente na regiao. Deixe comentado para usar
+# somente SSM Session Manager (sem chave SSH).
+# ssh_key_name = "minha-chave"
+
+proxy_instance_type = "t3.micro"
+agent_instance_type = "t3.micro"
+agent_count         = 2
+
+# --- Conectividade Zabbix ----------------------------------------------------
+zabbix_server_address = "zabbix.exemplo.interno" # IP ou hostname do Server central
+zabbix_server_cidr    = "10.10.0.0/16"           # null = sem regra de egress dedicada
+zabbix_proxy_port     = 10051
+zabbix_agent_port     = 10050
