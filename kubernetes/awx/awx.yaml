@@ -1,0 +1,50 @@
+# Custom Resource do AWX. Aplicado APOS o operator estar pronto.
+# PostgreSQL interno gerenciado pelo proprio operator (nao ha
+# postgres_configuration_secret), conforme a POC.
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx
+  namespace: awx
+spec:
+  # Nao expor publicamente: somente ClusterIP. Acesso inicial via port-forward.
+  service_type: ClusterIP
+
+  # PostgreSQL interno usa a StorageClass gp3 (EBS CSI) com volume pequeno.
+  postgres_storage_class: ebs-csi-gp3
+  postgres_storage_requirements:
+    requests:
+      storage: 8Gi
+
+  # Sem PVC de projects (evita necessidade de storage RWX; EBS e RWO).
+  projects_persistence: false
+
+  # ----- Recursos minimos para POC (evita consumo excessivo) -----
+  web_resource_requirements:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  task_resource_requirements:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  ee_resource_requirements:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  postgres_resource_requirements:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi

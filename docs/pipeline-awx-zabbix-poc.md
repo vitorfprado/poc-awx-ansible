@@ -1,10 +1,14 @@
-# Pipeline Terraform — awx-zabbix-poc
+# Pipeline awx-zabbix-poc
 
 Pipeline **manual/sob demanda** (GitHub Actions) para gerenciar o ciclo de vida da
-infraestrutura da POC: `plan`, `apply` e `destroy`.
+POC, em **dois estágios**:
+
+- **Stage 1 — Terraform (infra AWS):** VPC, EKS, EC2s do Zabbix. `plan`/`apply`/`destroy`.
+- **Stage 2 — Bootstrap AWX:** após o `apply`, configura o EKS e instala o AWX
+  Operator + AWX (PostgreSQL interno). Manifests em [`kubernetes/awx/`](../kubernetes/awx/README.md).
 
 - **Workflow:** [`.github/workflows/terraform-awx-zabbix-poc.yml`](../.github/workflows/terraform-awx-zabbix-poc.yml)
-- **Working directory:** `iac/awx-zabbix-poc`
+- **Working directory (Stage 1):** `iac/awx-zabbix-poc`
 
 > **Nota sobre o caminho:** o pedido original mencionava `terraform/consumers/awx-zabbix-poc`,
 > mas o consumer foi mantido em `iac/awx-zabbix-poc`. A pipeline aponta para esse caminho.
@@ -14,15 +18,22 @@ infraestrutura da POC: `plan`, `apply` e `destroy`.
 - **Só roda manualmente** (`workflow_dispatch`). Não há trigger de `push`/`pull_request`,
   então **nenhum `apply` ou `destroy` acontece automaticamente**.
 - Parâmetro de entrada **`action`**: `plan` | `apply` | `destroy`.
-- Em **toda** execução roda, nesta ordem: `terraform fmt -check` → `init` →
-  `validate` → `plan`.
-- `apply` e `destroy` aplicam o **plano salvo** (`tfplan`) gerado no passo `plan`
-  da mesma execução (consistência entre o que foi revisado e o que é aplicado).
-- `destroy` exige um campo de confirmação extra e emite banners/avisos bem visíveis.
+- **Stage 1** em toda execução roda, nesta ordem: `terraform fmt -check` → `init` →
+  `validate` → `plan`. `apply`/`destroy` aplicam o **plano salvo** (`tfplan`).
+- **Stage 2** roda **somente quando `action=apply`** e depois do Stage 1: atualiza o
+  kubeconfig, aplica os manifests (Kustomize), aguarda os pods do AWX e publica os
+  comandos de acesso no *Summary*.
+- `destroy` exige um campo de confirmação extra, emite banners/avisos bem visíveis e,
+  antes de destruir o cluster, **remove o namespace `awx`** (libera o volume EBS do
+  PostgreSQL, evitando órfão).
 - O **state fica em S3** (backend remoto), para que um `destroy` posterior encontre
   os recursos de um `apply` anterior.
 - A autenticação na AWS é via **OIDC** (sem access keys estáticas): o job assume uma
   IAM role usando o token de identidade emitido pelo GitHub.
+
+> **Acesso ao EKS:** o Stage 2 administra o cluster usando a **mesma role OIDC** que o
+> criou no Stage 1 — com `bootstrap_cluster_creator_admin_permissions`, essa role já é
+> admin do cluster. Requer também o endpoint público do EKS habilitado (default da POC).
 
 ## Pré-requisitos (uma única vez)
 
@@ -112,9 +123,11 @@ Vá em **Actions → "Terraform - awx-zabbix-poc" → Run workflow** e escolha o
 ### apply
 1. `action` = `apply`.
 2. **Run workflow**.
-3. O job roda `fmt/init/validate/plan` e então `terraform apply tfplan`.
-4. Ao final, o **Summary** do run mostra os outputs úteis (cluster EKS, IP do Proxy,
-   IPs dos Agents e o comando de kubeconfig).
+3. **Stage 1** roda `fmt/init/validate/plan` e então `terraform apply tfplan`.
+4. **Stage 2** (automático, após o Stage 1) atualiza o kubeconfig, instala AWX
+   Operator + AWX e aguarda `awx-web`/`awx-task`.
+5. Ao final, o **Summary** mostra os outputs do Terraform e os comandos de acesso
+   ao AWX (`get pods`, senha admin, port-forward).
 
 ### destroy
 1. `action` = `destroy`.
@@ -147,5 +160,25 @@ No **Summary** do run de `apply`:
 - IP privado do Zabbix Proxy (`zabbix_proxy_private_ip`);
 - IPs privados dos Zabbix Agents (`zabbix_agent_private_ips`).
 
-Esses valores alimentam a etapa seguinte (instalação do AWX e execução dos playbooks
-Ansible), que **não** faz parte desta pipeline.
+Os IPs do Proxy/Agents alimentam a etapa seguinte (playbooks Ansible executados pelo
+AWX), que **não** faz parte desta pipeline.
+
+## Acesso ao AWX (após o Stage 2)
+
+Com o kubeconfig apontando para o cluster (`aws eks update-kubeconfig --name <cluster>
+--region <region>`):
+
+```bash
+# pods e serviços
+kubectl get pods -n awx
+kubectl get svc -n awx
+
+# senha do admin (usuário: admin)
+kubectl -n awx get secret awx-admin-password -o jsonpath="{.data.password}" | base64 -d; echo
+
+# acesso local via port-forward
+kubectl -n awx port-forward svc/awx-service 8080:80
+# depois: http://localhost:8080
+```
+
+Detalhes e troubleshooting em [`kubernetes/awx/README.md`](../kubernetes/awx/README.md).

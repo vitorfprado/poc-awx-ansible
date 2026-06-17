@@ -1,0 +1,15 @@
+# StorageClass gp3 servida pelo EBS CSI driver (instalado pelo Terraform com IRSA).
+# Usada pelo PVC do PostgreSQL interno do AWX. Nao e marcada como default para nao
+# conflitar com a StorageClass gp2 que o EKS cria automaticamente; o AWX a referencia
+# explicitamente via postgres_storage_class.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-csi-gp3
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer

@@ -41,9 +41,16 @@ env:
   TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'tfstate-awx-zabbix-poc-650687537445' }}
 
 jobs:
+  # ===========================================================================
+  # Stage 1: Terraform (infra AWS)
+  # ===========================================================================
   terraform:
-    name: "Terraform ${{ inputs.action }}"
+    name: "Stage 1 - Terraform ${{ inputs.action }}"
     runs-on: ubuntu-latest
+
+    # Disponibiliza o nome do cluster para o Stage 2.
+    outputs:
+      cluster_name: ${{ steps.tfout.outputs.cluster_name }}
 
     defaults:
       run:
@@ -137,10 +144,35 @@ jobs:
             terraform plan -no-color -out=tfplan
           fi
 
-      # apply e destroy aplicam o plano salvo (tfplan) gerado no passo anterior.
+      # apply aplica o plano salvo (tfplan) gerado no passo anterior.
       - name: Terraform apply (action=apply)
         if: ${{ inputs.action == 'apply' }}
         run: terraform apply -no-color -auto-approve tfplan
+
+      # Captura o nome do cluster para o Stage 2.
+      - name: Capturar outputs do Terraform (action=apply)
+        id: tfout
+        if: ${{ inputs.action == 'apply' }}
+        run: echo "cluster_name=$(terraform output -raw eks_cluster_name)" >> "$GITHUB_OUTPUT"
+
+      # Antes de destruir o cluster, remove o AWX para que o EBS CSI apague o
+      # volume do PostgreSQL (evita volume EBS orfao). Best-effort.
+      - name: Setup kubectl (pre-destroy)
+        if: ${{ inputs.action == 'destroy' }}
+        uses: azure/setup-kubectl@v4
+
+      - name: Pre-destroy - remover AWX do cluster (best-effort)
+        if: ${{ inputs.action == 'destroy' }}
+        continue-on-error: true
+        run: |
+          CLUSTER="$(terraform output -raw eks_cluster_name 2>/dev/null || true)"
+          if [ -z "$CLUSTER" ]; then
+            echo "Sem cluster no state; nada a limpar."
+            exit 0
+          fi
+          aws eks update-kubeconfig --name "$CLUSTER" --region "${{ env.AWS_REGION }}" || exit 0
+          echo "Removendo namespace awx (libera PVC/EBS antes do destroy)..."
+          kubectl delete namespace awx --wait=true --timeout=300s --ignore-not-found || true
 
       - name: Terraform destroy (action=destroy)
         if: ${{ inputs.action == 'destroy' }}
@@ -164,4 +196,83 @@ jobs:
             echo '```json'
             terraform output -json zabbix_agent_private_ips
             echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # Stage 2: Bootstrap Kubernetes + AWX Operator (somente em action=apply)
+  # ===========================================================================
+  bootstrap_awx:
+    name: "Stage 2 - Bootstrap AWX"
+    needs: terraform
+    if: ${{ inputs.action == 'apply' }}
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciais AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          role-session-name: gha-bootstrap-awx
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Atualizar kubeconfig
+        run: aws eks update-kubeconfig --name "${{ needs.terraform.outputs.cluster_name }}" --region "${{ env.AWS_REGION }}"
+
+      # Passo 1: operator + namespace + StorageClass.
+      - name: Instalar AWX Operator (kustomize)
+        run: |
+          kubectl apply -k kubernetes/awx
+          echo "Aguardando o AWX Operator ficar pronto..."
+          kubectl -n awx rollout status deployment/awx-operator-controller-manager --timeout=300s
+
+      # Passo 2: Custom Resource do AWX (depois do CRD/operator prontos).
+      - name: Criar instancia AWX e aguardar os pods
+        run: |
+          kubectl apply -f kubernetes/awx/awx.yaml
+          echo "Aguardando o operator criar o deployment awx-web..."
+          for i in $(seq 1 60); do
+            if kubectl -n awx get deploy awx-web >/dev/null 2>&1; then
+              echo "awx-web criado."
+              break
+            fi
+            echo "  ...ainda nao ($i/60)"
+            sleep 10
+          done
+          kubectl -n awx rollout status deployment/awx-web  --timeout=900s
+          kubectl -n awx rollout status deployment/awx-task --timeout=900s
+
+      - name: Estado do AWX e comandos de acesso
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## AWX (Stage 2)"
+            echo ""
+            echo "### Pods (\`kubectl get pods -n awx\`)"
+            echo '```'
+            kubectl get pods -n awx || true
+            echo '```'
+            echo "### Services (\`kubectl get svc -n awx\`)"
+            echo '```'
+            kubectl get svc -n awx || true
+            echo '```'
+            echo "### Acesso ao AWX"
+            echo "Senha do admin:"
+            echo '```bash'
+            echo 'kubectl -n awx get secret awx-admin-password -o jsonpath="{.data.password}" | base64 -d; echo'
+            echo '```'
+            echo "Port-forward (acesso local):"
+            echo '```bash'
+            echo 'kubectl -n awx port-forward svc/awx-service 8080:80'
+            echo '```'
+            echo "Depois acesse <http://localhost:8080> (usuario: \`admin\`)."
           } >> "$GITHUB_STEP_SUMMARY"
