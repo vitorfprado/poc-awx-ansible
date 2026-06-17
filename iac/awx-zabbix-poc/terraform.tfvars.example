@@ -31,6 +31,10 @@ eks_endpoint_public_access = true
 # Restrinja ao seu IP em vez de 0.0.0.0/0 sempre que possivel:
 eks_public_access_cidrs = ["0.0.0.0/0"]
 
+# Principals IAM com admin no cluster (para kubectl fora do pipeline).
+# Gerenciado por apply/destroy. Ex.: seu usuario IAM.
+eks_admin_principal_arns = ["arn:aws:iam::650687537445:user/vitor.prado"]
+
 # --- EC2s Zabbix -------------------------------------------------------------
 # Nome de um key pair EC2 ja existente na regiao. Deixe comentado para usar
 # somente SSM Session Manager (sem chave SSH).

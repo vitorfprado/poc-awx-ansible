@@ -17,6 +17,20 @@ locals {
     ssm = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
 
+  # Access entries do EKS concedendo admin de cluster aos principals informados.
+  # A chave do mapa e a propria ARN (apenas usada pelo for_each do modulo).
+  eks_admin_access_entries = {
+    for arn in var.eks_admin_principal_arns : arn => {
+      principal_arn = arn
+      policy_associations = {
+        cluster_admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          scope_type = "cluster"
+        }
+      }
+    }
+  }
+
   # Mapa dos Zabbix Agents gerado a partir de agent_count.
   # Cada agent recebe um indice de subnet (round-robin entre as subnets privadas)
   # para distribuir as instancias entre as AZs. Para adicionar mais agents,

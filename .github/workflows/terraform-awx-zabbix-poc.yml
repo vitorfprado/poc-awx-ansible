@@ -109,6 +109,7 @@ jobs:
           V_ZBX_ADDR: ${{ vars.ZABBIX_SERVER_ADDRESS }}
           V_ZBX_CIDR: ${{ vars.ZABBIX_SERVER_CIDR }}
           V_AGENT_COUNT: ${{ vars.AGENT_COUNT }}
+          V_EKS_ADMINS: ${{ vars.EKS_ADMIN_PRINCIPAL_ARNS }}
         run: |
           f=ci.auto.tfvars
           : > "$f"
@@ -117,6 +118,11 @@ jobs:
           [ -n "$V_ZBX_ADDR" ]     && printf 'zabbix_server_address = "%s"\n' "$V_ZBX_ADDR"     >> "$f"
           [ -n "$V_ZBX_CIDR" ]     && printf 'zabbix_server_cidr = "%s"\n'    "$V_ZBX_CIDR"     >> "$f"
           [ -n "$V_AGENT_COUNT" ]  && printf 'agent_count = %s\n'             "$V_AGENT_COUNT"  >> "$f"
+          # Lista separada por virgula -> ["arn1","arn2"]
+          if [ -n "$V_EKS_ADMINS" ]; then
+            arns=$(echo "$V_EKS_ADMINS" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d; s/.*/"&"/' | paste -sd, -)
+            printf 'eks_admin_principal_arns = [%s]\n' "$arns" >> "$f"
+          fi
           echo "----- ci.auto.tfvars -----"
           cat "$f"
 

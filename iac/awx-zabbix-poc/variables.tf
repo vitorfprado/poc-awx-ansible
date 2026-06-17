@@ -106,6 +106,12 @@ variable "eks_public_access_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "eks_admin_principal_arns" {
+  description = "ARNs de principals IAM (usuarios/roles) que recebem acesso de admin ao cluster via EKS access entries (AmazonEKSClusterAdminPolicy). Permite kubectl fora do pipeline e e gerenciado por apply/destroy."
+  type        = list(string)
+  default     = []
+}
+
 ###############################################################################
 # EC2s Zabbix (Proxy + Agents)
 ###############################################################################

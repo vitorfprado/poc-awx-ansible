@@ -65,6 +65,10 @@ module "eks" {
     eks-pod-identity-agent = {}
   }
 
+  # Acesso admin ao cluster para principals fora do pipeline (ex.: kubectl local).
+  # A role OIDC que cria o cluster ja e admin via bootstrap; estes sao adicionais.
+  access_entries = local.eks_admin_access_entries
+
   tags = local.common_tags
 }
 
