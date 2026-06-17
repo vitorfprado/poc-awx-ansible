@@ -10,10 +10,12 @@ Bootstrap do cluster EKS (criado no Stage 1 via Terraform) e instalação do
 
 | Arquivo | Função |
 |---|---|
-| `kustomization.yaml` | Instala o AWX Operator (base oficial, ref fixado) + namespace + StorageClass. |
-| `namespace.yaml` | Namespace `awx`. |
+| `kustomization.yaml` | Instala o AWX Operator (base oficial, ref fixado) + StorageClass. |
 | `storageclass.yaml` | StorageClass `ebs-csi-gp3` (EBS CSI) para o PVC do PostgreSQL. |
 | `awx.yaml` | Custom Resource `AWX` (PostgreSQL interno, ClusterIP, recursos mínimos). |
+
+> O namespace `awx` é criado pela própria base do operator (`config/default`), por
+> isso não há um `namespace.yaml` aqui — declará-lo duplicaria o recurso.
 
 ## Addons necessários (e por quê)
 

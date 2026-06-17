@@ -5,10 +5,11 @@ kind: Kustomization
 namespace: awx
 
 resources:
-  # Namespace e StorageClass da POC.
-  - namespace.yaml
+  # StorageClass da POC.
   - storageclass.yaml
   # AWX Operator (base oficial via Kustomize, ref fixado para reprodutibilidade).
+  # Esta base ja cria o Namespace "awx" — por isso nao declaramos um aqui
+  # (declarar duplicaria o recurso e o kustomize falha).
   - github.com/ansible/awx-operator/config/default?ref=2.19.1
 
 # Mantem a imagem do operator alinhada ao ref acima.
