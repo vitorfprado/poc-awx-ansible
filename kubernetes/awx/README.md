@@ -86,6 +86,17 @@ kubectl -n awx port-forward svc/awx-service 8080:80
 
 Acesse: <http://localhost:8080> (usuário `admin`, senha do passo anterior).
 
+## Troubleshooting
+
+- **Operator preso em `1/2 ImagePullBackOff` (`kube-rbac-proxy ... not found`):**
+  o awx-operator 2.19.1 aponta para `gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0`,
+  que foi removido daquele registry. O `kustomization.yaml` já remapeia essa imagem
+  para `quay.io/brancz/kube-rbac-proxy` — garanta que está usando esta versão dos
+  manifests.
+- **PostgreSQL (`awx-postgres-*`) em `Pending`:** verifique o PVC
+  (`kubectl -n awx get pvc`) e se a StorageClass `ebs-csi-gp3` existe e o EBS CSI
+  driver está saudável.
+
 ## Remover tudo
 
 A POC é destruída pelo Terraform (Stage 1):
