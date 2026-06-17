@@ -96,6 +96,10 @@ Acesse: <http://localhost:8080> (usuário `admin`, senha do passo anterior).
 - **PostgreSQL (`awx-postgres-*`) em `Pending`:** verifique o PVC
   (`kubectl -n awx get pvc`) e se a StorageClass `ebs-csi-gp3` existe e o EBS CSI
   driver está saudável.
+- **PostgreSQL em `CrashLoopBackOff` com `Permission denied` em
+  `/var/lib/pgsql/data/userdata`:** a imagem roda como usuário não-root e não
+  consegue escrever no volume EBS recém-provisionado. O `awx.yaml` já define
+  `postgres_data_volume_init: true` (init container que ajusta a permissão).
 
 ## Remover tudo
 

@@ -23,28 +23,29 @@ spec:
   # Sem PVC de projects (evita necessidade de storage RWX; EBS e RWO).
   projects_persistence: false
 
-  # ----- Recursos minimos para POC (evita consumo excessivo) -----
+  # ----- Recursos para POC (enxutos, mas com teto de memoria suficiente) -----
+  # web/task precisam de >=2Gi: com 1Gi o container awx-web era OOMKilled (exit 137).
   web_resource_requirements:
     requests:
       cpu: 250m
       memory: 512Mi
     limits:
       cpu: "1"
-      memory: 1Gi
+      memory: 2Gi
   task_resource_requirements:
     requests:
       cpu: 250m
       memory: 512Mi
     limits:
       cpu: "1"
-      memory: 1Gi
+      memory: 2Gi
   ee_resource_requirements:
     requests:
       cpu: 100m
       memory: 128Mi
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 1Gi
   postgres_resource_requirements:
     requests:
       cpu: 100m
