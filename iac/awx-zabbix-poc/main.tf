@@ -116,7 +116,7 @@ resource "aws_vpc_security_group_ingress_rule" "proxy_ssh_from_eks" {
 # Agents ativos enviam dados ao Proxy na porta do Proxy.
 resource "aws_vpc_security_group_ingress_rule" "proxy_from_agents" {
   security_group_id            = aws_security_group.proxy.id
-  description                  = "Zabbix Agents ativos -> Proxy"
+  description                  = "Zabbix Agents ativos para o Proxy"
   from_port                    = var.zabbix_proxy_port
   to_port                      = var.zabbix_proxy_port
   ip_protocol                  = "tcp"
@@ -139,7 +139,7 @@ resource "aws_vpc_security_group_egress_rule" "proxy_to_server" {
   count = var.zabbix_server_cidr != null ? 1 : 0
 
   security_group_id = aws_security_group.proxy.id
-  description       = "Proxy -> Zabbix Server central"
+  description       = "Proxy para o Zabbix Server central"
   from_port         = var.zabbix_proxy_port
   to_port           = var.zabbix_proxy_port
   ip_protocol       = "tcp"
@@ -161,7 +161,7 @@ resource "aws_vpc_security_group_ingress_rule" "agent_ssh_from_eks" {
 # Proxy faz checks passivos no Agent na porta do Agent.
 resource "aws_vpc_security_group_ingress_rule" "agent_from_proxy" {
   security_group_id            = aws_security_group.agent.id
-  description                  = "Proxy -> Zabbix Agent (checks passivos)"
+  description                  = "Proxy para o Zabbix Agent (checks passivos)"
   from_port                    = var.zabbix_agent_port
   to_port                      = var.zabbix_agent_port
   ip_protocol                  = "tcp"
@@ -193,6 +193,9 @@ module "zabbix_proxy" {
 
   key_name = var.ssh_key_name
 
+  # AL2023 exige root >= 30GB (tamanho do snapshot da AMI).
+  root_volume_size = var.ec2_root_volume_size
+
   # SG gerenciado no consumer (ver bloco de Security Groups acima).
   create_security_group  = false
   vpc_security_group_ids = [aws_security_group.proxy.id]
@@ -220,6 +223,9 @@ module "zabbix_agent" {
   subnet_id = module.vpc.private_subnet_ids[each.value.subnet_index]
 
   key_name = var.ssh_key_name
+
+  # AL2023 exige root >= 30GB (tamanho do snapshot da AMI).
+  root_volume_size = var.ec2_root_volume_size
 
   create_security_group  = false
   vpc_security_group_ids = [aws_security_group.agent.id]

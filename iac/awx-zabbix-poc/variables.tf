@@ -134,6 +134,17 @@ variable "agent_count" {
   default     = 2
 }
 
+variable "ec2_root_volume_size" {
+  description = "Tamanho (GB) do volume raiz das EC2s. Minimo 30 para a AMI Amazon Linux 2023."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.ec2_root_volume_size >= 30
+    error_message = "ec2_root_volume_size deve ser >= 30 (tamanho do snapshot da AMI AL2023)."
+  }
+}
+
 ###############################################################################
 # Conectividade Zabbix
 ###############################################################################
