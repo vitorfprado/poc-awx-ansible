@@ -15,6 +15,10 @@ spec:
   postgres_storage_requirements:
     requests:
       storage: 8Gi
+  # Init container que ajusta a permissao do volume EBS antes do PostgreSQL subir.
+  # Sem isso, a imagem (usuario nao-root) falha com "Permission denied" ao criar
+  # /var/lib/pgsql/data/userdata no volume recem-provisionado.
+  postgres_data_volume_init: true
 
   # Sem PVC de projects (evita necessidade de storage RWX; EBS e RWO).
   projects_persistence: false
