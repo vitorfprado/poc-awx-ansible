@@ -197,11 +197,20 @@ jobs:
             echo "::warning::Destroy falhou. Limpando ENIs orfas do VPC CNI e repetindo..."
             VPC=$(terraform output -raw vpc_id 2>/dev/null || true)
             if [ -n "$VPC" ]; then
+              # ENIs orfas do VPC CNI (status available).
               for eni in $(aws ec2 describe-network-interfaces \
                   --filters "Name=vpc-id,Values=$VPC" "Name=status,Values=available" \
                   --query "NetworkInterfaces[].NetworkInterfaceId" --output text); do
                 echo "  removendo ENI orfa $eni"
                 aws ec2 delete-network-interface --network-interface-id "$eni" || true
+              done
+              # SG que o EKS cria sozinho (eks-cluster-sg-*) e nao remove ao deletar
+              # o cluster; trava a delecao da VPC. Nao toca nos SGs do Terraform.
+              for sg in $(aws ec2 describe-security-groups \
+                  --filters "Name=vpc-id,Values=$VPC" "Name=group-name,Values=eks-cluster-sg-*" \
+                  --query "SecurityGroups[].GroupId" --output text); do
+                echo "  removendo SG orfao do EKS $sg"
+                aws ec2 delete-security-group --group-id "$sg" || true
               done
             fi
             # Replan + destroy (o plano salvo fica obsoleto apos a delecao parcial).

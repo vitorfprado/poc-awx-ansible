@@ -168,11 +168,11 @@ Vá em **Actions → "Terraform - awx-zabbix-poc" → Run workflow** e escolha o
 - Rode um `action=destroy` e **leia o plano de destruição** nos logs antes de considerar
   o ambiente realmente encerrado.
 
-> **ENIs órfãs do VPC CNI (`DependencyViolation` ao deletar subnet):** quando os nodes
-> do EKS terminam, o Amazon VPC CNI pode deixar ENIs secundárias (`status=available`,
-> descrição `aws-K8S-*`) que travam a deleção das subnets. O step de destroy **detecta
-> a falha, remove as ENIs desanexadas da VPC e repete o destroy** automaticamente. Para
-> limpar manualmente:
+> **`DependencyViolation` ao deletar subnet/VPC:** dois recursos criados pela AWS
+> (não pelo Terraform) podem travar o destroy quando os nodes do EKS terminam:
+> ENIs secundárias do VPC CNI (`status=available`, `aws-K8S-*`) e o security group que
+> o EKS cria sozinho (`eks-cluster-sg-*`). O step de destroy **detecta a falha, remove
+> ambos da VPC e repete o destroy** automaticamente. Para limpar manualmente as ENIs:
 > ```bash
 > aws ec2 describe-network-interfaces --filters Name=vpc-id,Values=<vpc> Name=status,Values=available \
 >   --query "NetworkInterfaces[].NetworkInterfaceId" --output text \
