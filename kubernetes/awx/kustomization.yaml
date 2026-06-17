@@ -16,6 +16,12 @@ resources:
 images:
   - name: quay.io/ansible/awx-operator
     newTag: 2.19.1
+  # O awx-operator 2.19.1 referencia gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0,
+  # que foi REMOVIDO desse registry (ImagePullBackOff: not found). Remapeia para
+  # o registry upstream mantido (quay.io/brancz/kube-rbac-proxy).
+  - name: gcr.io/kubebuilder/kube-rbac-proxy
+    newName: quay.io/brancz/kube-rbac-proxy
+    newTag: v0.15.0
 
 # OBS: o Custom Resource do AWX (awx.yaml) NAO entra aqui de proposito.
 # Ele e aplicado em um segundo passo, depois que o CRD/operator estiverem

@@ -231,13 +231,25 @@ jobs:
       # Passo 1: operator + namespace + StorageClass.
       - name: Instalar AWX Operator (kustomize)
         run: |
+          set +e
           kubectl apply -k kubernetes/awx
           echo "Aguardando o AWX Operator ficar pronto..."
-          kubectl -n awx rollout status deployment/awx-operator-controller-manager --timeout=300s
+          kubectl -n awx rollout status deployment/awx-operator-controller-manager --timeout=600s
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "::group::Diagnostico (operator)"
+            kubectl get nodes -o wide
+            kubectl -n awx get pods -o wide
+            kubectl -n awx describe pod -l control-plane=controller-manager
+            kubectl -n awx get events --sort-by=.lastTimestamp | tail -40
+            echo "::endgroup::"
+          fi
+          exit $rc
 
       # Passo 2: Custom Resource do AWX (depois do CRD/operator prontos).
       - name: Criar instancia AWX e aguardar os pods
         run: |
+          set +e
           kubectl apply -f kubernetes/awx/awx.yaml
           echo "Aguardando o operator criar o deployment awx-web..."
           for i in $(seq 1 60); do
@@ -248,8 +260,18 @@ jobs:
             echo "  ...ainda nao ($i/60)"
             sleep 10
           done
-          kubectl -n awx rollout status deployment/awx-web  --timeout=900s
+          kubectl -n awx rollout status deployment/awx-web  --timeout=900s && \
           kubectl -n awx rollout status deployment/awx-task --timeout=900s
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "::group::Diagnostico (AWX)"
+            kubectl -n awx get pods -o wide
+            kubectl -n awx get pvc
+            kubectl -n awx describe pods
+            kubectl -n awx get events --sort-by=.lastTimestamp | tail -50
+            echo "::endgroup::"
+          fi
+          exit $rc
 
       - name: Estado do AWX e comandos de acesso
         if: ${{ always() }}
