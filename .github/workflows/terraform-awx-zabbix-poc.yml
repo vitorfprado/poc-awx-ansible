@@ -213,6 +213,16 @@ jobs:
                 aws ec2 delete-security-group --group-id "$sg" || true
               done
             fi
+            # Volumes EBS orfaos (PVC do PostgreSQL do AWX) que o CSI nao apagou.
+            CLUSTER=$(terraform output -raw eks_cluster_name 2>/dev/null || true)
+            if [ -n "$CLUSTER" ]; then
+              for vol in $(aws ec2 describe-volumes \
+                  --filters "Name=status,Values=available" "Name=tag:kubernetes.io/cluster/$CLUSTER,Values=owned" \
+                  --query "Volumes[].VolumeId" --output text); do
+                echo "  removendo volume EBS orfao $vol"
+                aws ec2 delete-volume --volume-id "$vol" || true
+              done
+            fi
             # Replan + destroy (o plano salvo fica obsoleto apos a delecao parcial).
             terraform destroy -no-color -auto-approve
             rc=$?
