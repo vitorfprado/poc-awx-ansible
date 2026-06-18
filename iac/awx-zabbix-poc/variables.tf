@@ -79,7 +79,7 @@ variable "eks_node_instance_types" {
 variable "eks_node_desired_size" {
   description = "Quantidade desejada de nodes no managed node group do EKS."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "eks_node_min_size" {
@@ -91,7 +91,7 @@ variable "eks_node_min_size" {
 variable "eks_node_max_size" {
   description = "Quantidade maxima de nodes no managed node group do EKS."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "eks_endpoint_public_access" {
