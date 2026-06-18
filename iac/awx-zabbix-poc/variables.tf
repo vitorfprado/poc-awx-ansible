@@ -112,6 +112,12 @@ variable "eks_admin_principal_arns" {
   default     = []
 }
 
+variable "enable_metrics_server" {
+  description = "Instala o Metrics Server (kubectl top / HPA) via modulo eks/addons (Helm)."
+  type        = bool
+  default     = true
+}
+
 ###############################################################################
 # EC2s Zabbix (Proxy + Agents)
 ###############################################################################
