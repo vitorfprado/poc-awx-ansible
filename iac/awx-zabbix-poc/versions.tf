@@ -11,14 +11,5 @@ terraform {
       source  = "hashicorp/tls"
       version = ">= 4.0"
     }
-    # Usados pelo modulo eks/addons (metrics-server via Helm).
-    helm = {
-      source  = "hashicorp/helm"
-      version = ">= 3.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = ">= 2.30"
-    }
   }
 }

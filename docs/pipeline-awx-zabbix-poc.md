@@ -4,8 +4,9 @@ Pipeline **manual/sob demanda** (GitHub Actions) para gerenciar o ciclo de vida 
 POC, em **dois estágios**:
 
 - **Stage 1 — Terraform (infra AWS):** VPC, EKS, EC2s do Zabbix. `plan`/`apply`/`destroy`.
-- **Stage 2 — Bootstrap AWX:** após o `apply`, configura o EKS e instala o AWX
-  Operator + AWX (PostgreSQL interno). Manifests em [`kubernetes/awx/`](../kubernetes/awx/README.md).
+- **Stage 2 — Bootstrap (addons + AWX):** após o `apply`, configura o EKS, instala
+  os addons de cluster ([`metrics-server`](../kubernetes/addons/README.md)) e o AWX
+  Operator + AWX (PostgreSQL interno). Manifests em [`kubernetes/`](../kubernetes/).
 
 - **Workflow:** [`.github/workflows/terraform-awx-zabbix-poc.yml`](../.github/workflows/terraform-awx-zabbix-poc.yml)
 - **Working directory (Stage 1):** `iac/awx-zabbix-poc`

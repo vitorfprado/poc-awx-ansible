@@ -251,7 +251,7 @@ jobs:
   # Stage 2: Bootstrap Kubernetes + AWX Operator (somente em action=apply)
   # ===========================================================================
   bootstrap_awx:
-    name: "Stage 2 - Bootstrap AWX"
+    name: "Stage 2 - Bootstrap (addons + AWX)"
     needs: terraform
     if: ${{ inputs.action == 'apply' }}
     runs-on: ubuntu-latest
@@ -276,6 +276,22 @@ jobs:
 
       - name: Atualizar kubeconfig
         run: aws eks update-kubeconfig --name "${{ needs.terraform.outputs.cluster_name }}" --region "${{ env.AWS_REGION }}"
+
+      # Addon de cluster: metrics-server (kubectl top / HPA). Instalado aqui (e
+      # nao no Terraform) para nao acoplar o Terraform a API do cluster.
+      - name: Instalar metrics-server (addon)
+        run: |
+          set -e
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.7.2/components.yaml
+          # EKS: cert de serving do kubelet nao e confiavel por padrao.
+          kubectl -n kube-system patch deployment metrics-server --type=json \
+            -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+          set +e
+          kubectl -n kube-system rollout status deployment/metrics-server --timeout=300s
+          if [ $? -ne 0 ]; then
+            echo "::warning::metrics-server nao ficou Ready (a POC segue mesmo assim)."
+            kubectl -n kube-system get pods -l k8s-app=metrics-server -o wide || true
+          fi
 
       # Passo 1: operator + namespace + StorageClass.
       - name: Instalar AWX Operator (kustomize)

@@ -73,27 +73,6 @@ module "eks" {
 }
 
 ###############################################################################
-# Addons do cluster (Helm) - apenas o minimo da POC: metrics-server
-###############################################################################
-
-module "addons" {
-  source = "github.com/vitorfprado/terraform-aws-modules//eks/addons?ref=main"
-
-  cluster_name      = module.eks.cluster_name
-  oidc_provider_arn = module.eks.oidc_provider_arn
-  oidc_provider_url = module.eks.oidc_provider_url
-  vpc_id            = module.vpc.vpc_id
-  region            = var.aws_region
-
-  enable_metrics_server = var.enable_metrics_server
-
-  tags = local.common_tags
-
-  # Garante que o cluster/nodes existam antes de instalar via Helm.
-  depends_on = [module.eks]
-}
-
-###############################################################################
 # Security Groups das EC2s
 #
 # Criados aqui (e nao dentro do modulo ec2) por dois motivos:

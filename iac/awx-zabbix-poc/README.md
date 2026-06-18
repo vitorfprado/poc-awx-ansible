@@ -46,18 +46,15 @@ Todos do repositório [`vitorfprado/terraform-aws-modules`](https://github.com/v
 |---|---|
 | `//vpc` | VPC única, subnets públicas/privadas e NAT Gateway. |
 | `//eks` | Cluster EKS, node group, IRSA, add-ons base e EBS CSI driver. |
-| `//eks/addons` | **metrics-server** (`kubectl top` / HPA) via Helm. |
 | `//ec2` | EC2 do Proxy e EC2s dos Agents (reutilizado via `for_each`). |
 
 > Os Security Groups das EC2s são criados no consumer (não no módulo `ec2`) para
 > evitar a dependência circular entre Proxy e Agent e para compartilhar o SG
 > entre todos os agents.
 
-> O módulo `eks/addons` usa Helm, então o consumer configura os providers
-> `kubernetes` e `helm` (autenticação via `aws eks get-token`, sem kubeconfig em
-> disco). Como é via Terraform, o `apply` instala e o `destroy` remove o
-> metrics-server (o `destroy` precisa de acesso ao cluster — a role do pipeline já
-> é admin). Controle com `enable_metrics_server` (default `true`).
+> Addons de cluster (ex.: **metrics-server**) são instalados no **Stage 2**
+> (kubectl), não pelo Terraform — assim o Terraform não depende da API do cluster
+> para `plan`/`apply`/`destroy`. Ver [kubernetes/addons](../../kubernetes/addons/README.md).
 
 ## Variáveis que você precisa preencher
 

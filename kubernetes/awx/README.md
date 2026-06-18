@@ -24,10 +24,10 @@ O mínimo para o AWX rodar **já vem do Terraform (Stage 1)**:
 - `coredns`, `kube-proxy`, `vpc-cni` — addons base do EKS;
 - **EBS CSI driver** (com IRSA) — provisionamento dinâmico de volumes.
 
-No cluster, o Stage 2 só adiciona a **StorageClass gp3** (`storageclass.yaml`). O
-**metrics-server** (`kubectl top` / HPA) é instalado pelo **Terraform** (módulo
-`eks/addons`, no Stage 1). **Não** são instalados cert-manager nem ingress
-controller (o AWX fica em ClusterIP + port-forward), mantendo a POC simples.
+No cluster, o Stage 2 adiciona a **StorageClass gp3** (`storageclass.yaml`) e o
+**metrics-server** (`kubectl top` / HPA, em [kubernetes/addons](../addons/README.md)).
+**Não** são instalados cert-manager nem ingress controller (o AWX fica em
+ClusterIP + port-forward), mantendo a POC simples.
 
 ## Por que dois passos (e não um `apply -k`)
 
