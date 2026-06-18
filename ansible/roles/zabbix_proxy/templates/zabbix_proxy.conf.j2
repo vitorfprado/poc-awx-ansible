@@ -1,0 +1,41 @@
+# {{ ansible_managed }}
+# Zabbix Proxy - POC awx-zabbix. NAO editar manualmente (gerenciado pelo Ansible).
+
+# 0 = active (proxy conecta no Server) | 1 = passive (Server conecta no proxy)
+ProxyMode={{ zabbix_proxy_mode }}
+
+# Zabbix Server central com o qual o proxy se comunica.
+Server={{ zabbix_server_address }}
+
+# Hostname do proxy (DEVE bater com o nome cadastrado no Zabbix Server).
+Hostname={{ zabbix_proxy_hostname }}
+
+ListenPort={{ zabbix_proxy_listen_port }}
+
+LogType=file
+LogFile=/var/log/zabbix/zabbix_proxy.log
+LogFileSize=10
+PidFile=/run/zabbix/zabbix_proxy.pid
+SocketDir=/run/zabbix
+
+# Banco local do proxy (SQLite): DBName e o caminho do arquivo.
+DBName={{ zabbix_proxy_db_path }}
+
+CacheSize={{ zabbix_proxy_cache_size }}
+HistoryCacheSize={{ zabbix_proxy_history_cache_size }}
+HistoryIndexCacheSize={{ zabbix_proxy_history_index_cache_size }}
+
+Timeout={{ zabbix_proxy_timeout }}
+ProxyOfflineBuffer={{ zabbix_proxy_offline_buffer }}
+ConfigFrequency={{ zabbix_proxy_config_frequency }}
+DataSenderFrequency={{ zabbix_proxy_data_sender_frequency }}
+
+{% if zabbix_proxy_tls_enabled | bool %}
+# --- TLS/PSK ---
+TLSConnect=psk
+TLSAccept=psk
+TLSPSKIdentity={{ zabbix_proxy_tls_psk_identity }}
+TLSPSKFile={{ zabbix_proxy_tls_psk_file }}
+{% endif %}
+
+Include={{ zabbix_proxy_include_dir }}/*.conf

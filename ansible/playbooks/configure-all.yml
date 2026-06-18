@@ -1,0 +1,5 @@
+---
+# Configura a POC inteira na ordem correta: PRIMEIRO o proxy, DEPOIS os agents
+# (os agents apontam para o proxy, entao o proxy deve existir antes).
+- import_playbook: install-zabbix-proxy.yml
+- import_playbook: install-zabbix-agents.yml

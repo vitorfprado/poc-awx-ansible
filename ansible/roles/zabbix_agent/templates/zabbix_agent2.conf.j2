@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+# Zabbix Agent 2 - POC awx-zabbix. NAO editar manualmente (gerenciado pelo Ansible).
+
+# Aponta para o PROXY (nao para o Server):
+#  - Server       (passivo): proxy faz checks neste agent
+#  - ServerActive (ativo):   este agent envia dados ao proxy
+Server={{ zabbix_agent_server }}
+ServerActive={{ zabbix_agent_server_active }}
+
+# Hostname do agent (DEVE bater com o nome cadastrado no Zabbix Server).
+Hostname={{ zabbix_agent_hostname }}
+
+ListenPort={{ zabbix_agent_listen_port }}
+
+LogType=file
+LogFile=/var/log/zabbix/zabbix_agent2.log
+LogFileSize=10
+PidFile=/run/zabbix/zabbix_agent2.pid
+ControlSocket=/run/zabbix/agent.sock
+
+{% if zabbix_agent_host_metadata | length > 0 %}
+HostMetadata={{ zabbix_agent_host_metadata }}
+{% endif %}
+
+{% if zabbix_agent_tls_enabled | bool %}
+# --- TLS/PSK ---
+TLSConnect=psk
+TLSAccept=psk
+TLSPSKIdentity={{ zabbix_agent_tls_psk_identity }}
+TLSPSKFile={{ zabbix_agent_tls_psk_file }}
+{% endif %}
+
+Include={{ zabbix_agent_include_dir }}/*.conf

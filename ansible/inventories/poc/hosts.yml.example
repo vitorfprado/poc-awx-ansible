@@ -1,0 +1,24 @@
+---
+# Inventario da POC. Copie para hosts.yml e preencha os IPs privados com os
+# outputs do Terraform:
+#   - zabbix_proxy_private_ip      -> proxy-01.ansible_host
+#   - zabbix_agent_private_ips[*]  -> agent-NN.ansible_host
+#
+# Conter APENAS dados nao sensiveis (hostname logico + IP privado).
+# Usuario/porta/chave de conexao ficam em group_vars/all.yml (defaults) e,
+# no AWX, na Machine Credential.
+#
+# Para adicionar mais agents: basta acrescentar agent-03, agent-04, ... abaixo.
+all:
+  children:
+    zabbix_proxy:
+      hosts:
+        proxy-01:
+          ansible_host: "10.0.48.10" # <- zabbix_proxy_private_ip
+
+    zabbix_agents:
+      hosts:
+        agent-01:
+          ansible_host: "10.0.48.21" # <- zabbix_agent_private_ips["zbx-agent-01"]
+        agent-02:
+          ansible_host: "10.0.64.22" # <- zabbix_agent_private_ips["zbx-agent-02"]

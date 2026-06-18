@@ -1,0 +1,25 @@
+---
+# ============================================================================
+# Variaveis SENSIVEIS. NAO versionar o vault.yml descriptografado.
+# ============================================================================
+# Uso LOCAL (Ansible Vault):
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml
+#   ansible-playbook ... --ask-vault-pass        (ou --vault-id @prompt)
+#
+# Uso no AWX:
+#   Cadastre estas variaveis como um "Vault Credential" (ou Custom Credential)
+#   e NAO comite o vault.yml. O AWX injeta os segredos em tempo de execucao.
+#
+# O vault.yml real esta no .gitignore.
+
+# Endereco do Zabbix Server central (se preferir mante-lo fora do all.yml).
+vault_zabbix_server_address: "zabbix.exemplo.interno"
+
+# PSK do Proxy (gere com:  openssl rand -hex 32)
+vault_zabbix_proxy_psk_identity: "PSK-PROXY-POC"
+vault_zabbix_proxy_psk: "REPLACE_WITH_64_HEX_CHARS_FROM_openssl_rand_hex_32"
+
+# PSK dos Agents (gere com:  openssl rand -hex 32)
+vault_zabbix_agent_psk_identity: "PSK-AGENT-POC"
+vault_zabbix_agent_psk: "REPLACE_WITH_64_HEX_CHARS_FROM_openssl_rand_hex_32"

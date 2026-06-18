@@ -1,0 +1,12 @@
+---
+# Collections necessarias para a execucao (no AWX, garanta uma Execution
+# Environment que as contenha, ou use este arquivo no Project para sync).
+collections:
+  - name: ansible.posix
+    version: ">=1.5.0"
+  - name: community.general
+    version: ">=8.0.0"
+  # Opcional/futuro: roles e modulos oficiais Zabbix para gestao via API do
+  # Server (criar hosts, templates, etc.). Esta POC usa roles proprias.
+  # - name: community.zabbix
+  #   version: ">=3.0.0"
