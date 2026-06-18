@@ -1,0 +1,76 @@
+# PostgreSQL interno do Zabbix Server. A senha vem do secret "zabbix-db"
+# (gerado pelo pipeline; nao versionado). Volume em gp3 (EBS CSI).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zabbix-postgres-data
+  namespace: zabbix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-csi-gp3
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-postgres
+  namespace: zabbix
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # volume RWO: nao pode haver 2 pods montando ao mesmo tempo
+  selector:
+    matchLabels:
+      app: zabbix-postgres
+  template:
+    metadata:
+      labels:
+        app: zabbix-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: zabbix
+            - name: POSTGRES_DB
+              value: zabbix
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-db
+                  key: POSTGRES_PASSWORD
+            # Subdir evita o erro de "lost+found" no volume EBS recem-criado.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: zabbix-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-postgres
+  namespace: zabbix
+spec:
+  selector:
+    app: zabbix-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

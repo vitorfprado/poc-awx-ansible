@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: zabbix
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - server.yaml
+  - web.yaml
+
+# OBS: o secret "zabbix-db" (senha do PostgreSQL) NAO entra aqui de proposito:
+# e gerado pelo pipeline (kubectl create secret) para nao versionar a senha.

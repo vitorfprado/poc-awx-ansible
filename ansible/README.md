@@ -51,7 +51,7 @@ ansible/
 | Variável | Onde | Origem |
 |---|---|---|
 | `ansible_host` (por host) | `inventories/poc/hosts.yml` | Outputs do Terraform (IPs privados) |
-| `zabbix_server_address` | `group_vars/all.yml` ou vault/extra-vars | Endereço do Zabbix Server central |
+| `zabbix_server_address` | `group_vars/all.yml` ou vault/extra-vars | DNS do **NLB interno** do Zabbix Server (publicado no *Summary* do Stage 2) |
 
 ### Sensíveis (NÃO versionar — usar Vault/AWX)
 

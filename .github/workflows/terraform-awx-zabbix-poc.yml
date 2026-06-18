@@ -180,6 +180,8 @@ jobs:
             exit 0
           fi
           aws eks update-kubeconfig --name "$CLUSTER" --region "${{ env.AWS_REGION }}" || exit 0
+          echo "Removendo namespace zabbix (libera o NLB interno antes do destroy)..."
+          kubectl delete namespace zabbix --wait=true --timeout=300s --ignore-not-found || true
           echo "Removendo namespace awx (libera PVC/EBS antes do destroy)..."
           kubectl delete namespace awx --wait=true --timeout=300s --ignore-not-found || true
 
@@ -362,4 +364,54 @@ jobs:
             echo 'kubectl -n awx port-forward svc/awx-service 8080:80'
             echo '```'
             echo "Depois acesse <http://localhost:8080> (usuario: \`admin\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Zabbix Server no cluster (server + web + postgres). Trapper (10051)
+      # exposto por NLB interno para o Zabbix Proxy (EC2) alcancar.
+      - name: Instalar Zabbix Server
+        run: |
+          set +e
+          kubectl apply -f kubernetes/zabbix-server/namespace.yaml
+          # Senha do banco: gerada UMA vez (idempotente; nao versionada).
+          kubectl -n zabbix get secret zabbix-db >/dev/null 2>&1 || \
+            kubectl -n zabbix create secret generic zabbix-db \
+              --from-literal=POSTGRES_PASSWORD="$(openssl rand -hex 16)"
+          kubectl apply -k kubernetes/zabbix-server
+          kubectl -n zabbix rollout status deployment/zabbix-postgres --timeout=300s && \
+          kubectl -n zabbix rollout status deployment/zabbix-server  --timeout=600s && \
+          kubectl -n zabbix rollout status deployment/zabbix-web     --timeout=600s
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "::group::Diagnostico (Zabbix)"
+            kubectl -n zabbix get pods -o wide
+            kubectl -n zabbix get pvc
+            kubectl -n zabbix describe pods
+            kubectl -n zabbix get events --sort-by=.lastTimestamp | tail -50
+            echo "::endgroup::"
+          fi
+          exit $rc
+
+      - name: Endereco do Zabbix Server (NLB) e acesso
+        if: ${{ always() }}
+        run: |
+          echo "Aguardando o NLB interno do trapper (10051)..."
+          NLB=""
+          for i in $(seq 1 30); do
+            NLB=$(kubectl -n zabbix get svc zabbix-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+            [ -n "$NLB" ] && break
+            sleep 10
+          done
+          {
+            echo "## Zabbix Server (Stage 2)"
+            echo ""
+            echo "- **zabbix_server_address (para o Proxy):** \`${NLB:-<provisionando; veja o comando abaixo>}\`"
+            echo "  - porta trapper \`10051\` (NLB interno, alcancavel pelas EC2s na VPC)"
+            echo '  ```bash'
+            echo "  kubectl -n zabbix get svc zabbix-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'; echo"
+            echo '  ```'
+            echo "- **UI web:** port-forward e acesse <http://localhost:8888> (login \`Admin\` / \`zabbix\`)"
+            echo '  ```bash'
+            echo "  kubectl -n zabbix port-forward svc/zabbix-web 8888:80"
+            echo '  ```'
+            echo "- Informe o endereco do NLB como \`zabbix_server_address\` no Job Template do Proxy (AWX)."
           } >> "$GITHUB_STEP_SUMMARY"

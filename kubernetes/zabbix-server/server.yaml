@@ -1,0 +1,64 @@
+# Zabbix Server (pgsql). Cria o schema no banco automaticamente na 1a subida.
+# O trapper (10051) e exposto por um NLB INTERNO para o Zabbix Proxy (EC2) na VPC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-server
+  namespace: zabbix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zabbix-server
+  template:
+    metadata:
+      labels:
+        app: zabbix-server
+    spec:
+      containers:
+        - name: zabbix-server
+          image: zabbix/zabbix-server-pgsql:alpine-7.0-latest
+          env:
+            - name: DB_SERVER_HOST
+              value: zabbix-postgres
+            - name: DB_SERVER_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              value: zabbix
+            - name: POSTGRES_DB
+              value: zabbix
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zabbix-db
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 10051
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-server
+  namespace: zabbix
+  annotations:
+    # NLB interno (instance target) gerenciado pelo cloud-provider in-tree do EKS.
+    # Fica nas subnets privadas (tag kubernetes.io/role/internal-elb), alcancavel
+    # pelas EC2s da VPC. Nao precisa do AWS Load Balancer Controller.
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: zabbix-server
+  ports:
+    - name: trapper
+      port: 10051
+      targetPort: 10051
+      protocol: TCP
