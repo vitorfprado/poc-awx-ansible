@@ -42,7 +42,11 @@ eks_admin_principal_arns = ["arn:aws:iam::650687537445:user/vitor.prado"]
 
 proxy_instance_type = "t3.micro"
 agent_instance_type = "t3.micro"
-agent_count         = 2
+agent_count         = 1 # agents Linux
+
+# Agents Windows (Windows Server 2022). 0 desabilita.
+windows_agent_count         = 1
+windows_agent_instance_type = "t3.small"
 
 # --- Conectividade Zabbix ----------------------------------------------------
 zabbix_server_address = "zabbix.exemplo.interno" # IP ou hostname do Server central

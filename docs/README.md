@@ -1,25 +1,11 @@
 # Documentação — POC awx-zabbix
 
-Toda a documentação da POC centralizada. Cada doc tem um ponteiro 📂 para o código
-correspondente.
+Foco: **entender** a ideia e **usar/validar** a POC.
 
-## Por camada
-
-| Doc | Sobre |
+| Doc | Para quê |
 |---|---|
-| [terraform.md](terraform.md) | Consumer Terraform (VPC, EKS, EC2s, SGs) — `iac/awx-zabbix-poc/`. |
-| [pipeline-awx-zabbix-poc.md](pipeline-awx-zabbix-poc.md) | Pipeline GitHub Actions (Stage 1 infra + Stage 2 bootstrap), OIDC, variables, destroy. |
-| [kubernetes-addons.md](kubernetes-addons.md) | Addons de cluster (metrics-server) no Stage 2. |
-| [kubernetes-awx.md](kubernetes-awx.md) | AWX Operator + AWX no EKS (Stage 2). |
-| [kubernetes-zabbix-server.md](kubernetes-zabbix-server.md) | Zabbix Server no cluster (server + web + PostgreSQL, NLB interno). |
-| [ansible.md](ansible.md) | Ansible (Zabbix Proxy/Agents) — referência rápida. |
-| [ansible-guia.md](ansible-guia.md) | Ansible — **guia didático** (explica cada configuração). |
-| [runbook-cadastro-manual.md](runbook-cadastro-manual.md) | **Passo a passo dos cadastros manuais** (AWX + UI do Zabbix). |
+| [como-funciona.md](como-funciona.md) | **Explicação detalhada** — arquitetura, como Ansible/proxy/agent/server se encaixam, cada configuração e o porquê (inclui Linux × Windows). |
+| [passo-a-passo.md](passo-a-passo.md) | **Uso e validação** — acessar AWX e Zabbix (port-forward), configurar o AWX, rodar os playbooks, fazer os cadastros manuais e ver os dados fluindo. |
+| [kubernetes-zabbix-server.md](kubernetes-zabbix-server.md) | Referência do Zabbix Server no cluster (manifests, NLB, acesso). |
 
-## Ordem sugerida de leitura
-
-1. **[terraform.md](terraform.md)** — entender a infra.
-2. **[pipeline-awx-zabbix-poc.md](pipeline-awx-zabbix-poc.md)** — como subir/destruir tudo.
-3. **[kubernetes-awx.md](kubernetes-awx.md)** + **[kubernetes-zabbix-server.md](kubernetes-zabbix-server.md)** — o que roda no cluster.
-4. **[ansible-guia.md](ansible-guia.md)** — como o Ansible configura Proxy/Agents.
-5. **[runbook-cadastro-manual.md](runbook-cadastro-manual.md)** — fazer os cadastros à mão e ver o fluxo fim a fim.
+Leitura sugerida: **como-funciona** (entender) → **passo-a-passo** (operar e validar).

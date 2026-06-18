@@ -1,0 +1,31 @@
+---
+# ============================================================================
+# Defaults da role zabbix_agent_windows (Zabbix Agent 2 em Windows Server 2022).
+# ============================================================================
+
+zabbix_version: "7.0"
+
+# Versao COMPLETA (patch) do agent Windows. Nao ha "latest" para o MSI: confirme
+# o patch atual em https://www.zabbix.com/download_agents (linha 7.0 LTS, Windows
+# MSI amd64 OpenSSL) e ajuste aqui se necessario.
+zabbix_agent_windows_version: "7.0.6"
+zabbix_agent_windows_msi_url: "https://cdn.zabbix.com/zabbix/binaries/stable/7.0/{{ zabbix_agent_windows_version }}/zabbix_agent2-{{ zabbix_agent_windows_version }}-windows-amd64-openssl.msi"
+zabbix_agent_windows_msi_dest: 'C:\Windows\Temp\zabbix_agent2.msi'
+
+zabbix_agent_windows_install_dir: 'C:\Program Files\Zabbix Agent 2'
+zabbix_agent_service: "Zabbix Agent 2"
+
+# Identidade / conexao Zabbix (aponta para o PROXY; IP derivado no group_vars).
+zabbix_agent_hostname: "{{ inventory_hostname }}"
+zabbix_agent_listen_port: 10050
+zabbix_proxy_private_ip: ""
+zabbix_proxy_listen_port: 10051
+zabbix_agent_server: "{{ zabbix_proxy_private_ip }}"
+zabbix_agent_server_active: "{{ zabbix_proxy_private_ip }}"
+zabbix_agent_host_metadata: "poc-zabbix-agent-windows"
+
+# TLS/PSK (desabilitado por padrao; segredos vem do vault).
+zabbix_agent_tls_enabled: false
+zabbix_agent_tls_psk_identity: ""
+zabbix_agent_tls_psk: ""
+zabbix_agent_tls_psk_file: 'C:\Program Files\Zabbix Agent 2\zabbix_agent2.psk'

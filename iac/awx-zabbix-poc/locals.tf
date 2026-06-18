@@ -41,4 +41,12 @@ locals {
       subnet_index = i % length(var.private_subnet_cidrs)
     }
   }
+
+  # Mapa dos Zabbix Agents WINDOWS (mesma logica do Linux).
+  windows_agents = {
+    for i in range(var.windows_agent_count) :
+    format("zbx-agent-win-%02d", i + 1) => {
+      subnet_index = i % length(var.private_subnet_cidrs)
+    }
+  }
 }

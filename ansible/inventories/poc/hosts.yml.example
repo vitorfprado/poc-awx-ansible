@@ -16,9 +16,16 @@ all:
         proxy-01:
           ansible_host: "10.0.48.10" # <- zabbix_proxy_private_ip
 
+    # Agents LINUX (Amazon Linux 2023, conexao SSH).
     zabbix_agents:
       hosts:
         agent-01:
           ansible_host: "10.0.48.21" # <- zabbix_agent_private_ips["zbx-agent-01"]
-        agent-02:
-          ansible_host: "10.0.64.22" # <- zabbix_agent_private_ips["zbx-agent-02"]
+
+    # Agents WINDOWS (Windows Server 2022, conexao WinRM). Conexao em
+    # group_vars/zabbix_agents_windows.yml. Senha = Machine Credential do AWX
+    # (output windows_admin_password do Terraform).
+    zabbix_agents_windows:
+      hosts:
+        agent-win-01:
+          ansible_host: "10.0.64.31" # <- zabbix_agent_windows_private_ips["zbx-agent-win-01"]

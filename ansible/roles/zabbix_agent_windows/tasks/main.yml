@@ -1,0 +1,57 @@
+---
+- name: Validar que o IP do proxy esta definido
+  ansible.builtin.assert:
+    that:
+      - zabbix_proxy_private_ip is defined
+      - zabbix_proxy_private_ip | length > 0
+    fail_msg: >-
+      zabbix_proxy_private_ip esta vazio. Garanta que o grupo zabbix_proxy tem
+      um host com ansible_host preenchido no inventario.
+
+- name: Baixar o MSI do Zabbix Agent 2 ({{ zabbix_agent_windows_version }})
+  ansible.windows.win_get_url:
+    url: "{{ zabbix_agent_windows_msi_url }}"
+    dest: "{{ zabbix_agent_windows_msi_dest }}"
+
+- name: Instalar o Zabbix Agent 2 (MSI)
+  ansible.windows.win_package:
+    path: "{{ zabbix_agent_windows_msi_dest }}"
+    state: present
+    # /quiet sem reboot; idempotente pelo ProductCode lido do proprio MSI.
+    arguments: /quiet /norestart
+
+- name: Garantir o diretorio de includes
+  ansible.windows.win_file:
+    path: "{{ zabbix_agent_windows_install_dir }}\\zabbix_agent2.d"
+    state: directory
+
+- name: Provisionar a PSK do agent (quando TLS habilitado)
+  ansible.windows.win_copy:
+    content: "{{ zabbix_agent_tls_psk }}"
+    dest: "{{ zabbix_agent_tls_psk_file }}"
+  when: zabbix_agent_tls_enabled | bool
+  no_log: true
+  notify: restart zabbix agent windows
+
+- name: Renderizar zabbix_agent2.conf
+  ansible.windows.win_template:
+    src: zabbix_agent2.conf.j2
+    dest: "{{ zabbix_agent_windows_install_dir }}\\zabbix_agent2.conf"
+  notify: restart zabbix agent windows
+
+- name: Habilitar e iniciar o servico do Zabbix Agent 2
+  ansible.windows.win_service:
+    name: "{{ zabbix_agent_service }}"
+    start_mode: auto
+    state: started
+
+- name: Aplicar mudancas pendentes (handlers)
+  ansible.builtin.meta: flush_handlers
+
+- name: Validar que o servico esta rodando
+  ansible.windows.win_service_info:
+    name: "{{ zabbix_agent_service }}"
+  register: zabbix_agent_windows_svc
+  failed_when: >-
+    (zabbix_agent_windows_svc.services | length == 0) or
+    (zabbix_agent_windows_svc.services[0].state != 'running')

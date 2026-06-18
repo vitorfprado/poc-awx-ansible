@@ -3,3 +3,4 @@
 # (os agents apontam para o proxy, entao o proxy deve existir antes).
 - import_playbook: install-zabbix-proxy.yml
 - import_playbook: install-zabbix-agents.yml
+- import_playbook: install-zabbix-agents-windows.yml

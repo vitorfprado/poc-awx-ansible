@@ -69,8 +69,24 @@ output "zabbix_agent_instance_ids" {
 }
 
 output "zabbix_agent_private_ips" {
-  description = "IPs privados das EC2s de Zabbix Agent, indexados pelo nome do agent."
+  description = "IPs privados das EC2s de Zabbix Agent Linux, indexados pelo nome do agent."
   value       = { for k, m in module.zabbix_agent : k => m.private_ip }
+}
+
+output "zabbix_agent_windows_private_ips" {
+  description = "IPs privados das EC2s de Zabbix Agent Windows, indexados pelo nome do agent."
+  value       = { for k, m in module.zabbix_agent_windows : k => m.private_ip }
+}
+
+output "zabbix_agent_windows_instance_ids" {
+  description = "IDs das EC2s de Zabbix Agent Windows."
+  value       = { for k, m in module.zabbix_agent_windows : k => m.instance_id }
+}
+
+output "windows_admin_password" {
+  description = "Senha do Administrator das EC2s Windows (para a Machine Credential do AWX)."
+  value       = try(random_password.windows_admin[0].result, null)
+  sensitive   = true
 }
 
 ###############################################################################
@@ -80,8 +96,9 @@ output "zabbix_agent_private_ips" {
 output "security_group_ids" {
   description = "IDs dos Security Groups criados para as EC2s do Zabbix."
   value = {
-    proxy = aws_security_group.proxy.id
-    agent = aws_security_group.agent.id
+    proxy         = aws_security_group.proxy.id
+    agent         = aws_security_group.agent.id
+    agent_windows = aws_security_group.agent_windows.id
   }
 }
 

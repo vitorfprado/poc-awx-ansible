@@ -61,3 +61,21 @@
         host: "{{ zabbix_proxy_private_ip }}"
         port: "{{ zabbix_proxy_listen_port | default(10051) }}"
         timeout: 10
+
+- name: Validar Zabbix Agents (Windows)
+  hosts: zabbix_agents_windows
+  gather_facts: false
+  tasks:
+    - name: Servico do agent ativo
+      ansible.windows.win_service_info:
+        name: "{{ zabbix_agent_service | default('Zabbix Agent 2') }}"
+      register: win_agent_svc
+      failed_when: >-
+        (win_agent_svc.services | length == 0) or
+        (win_agent_svc.services[0].state != 'running')
+
+    - name: Conectividade Agent -> Proxy ({{ zabbix_proxy_private_ip }}:{{ zabbix_proxy_listen_port | default(10051) }})
+      ansible.windows.win_wait_for:
+        host: "{{ zabbix_proxy_private_ip }}"
+        port: "{{ zabbix_proxy_listen_port | default(10051) }}"
+        timeout: 10

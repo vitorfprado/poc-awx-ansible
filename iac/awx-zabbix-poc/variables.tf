@@ -135,9 +135,32 @@ variable "agent_instance_type" {
 }
 
 variable "agent_count" {
-  description = "Quantidade de EC2s de Zabbix Agent. Aumente este numero para adicionar mais agents (distribuidos entre as subnets privadas)."
+  description = "Quantidade de EC2s de Zabbix Agent LINUX (Amazon Linux 2023). Aumente para mais agents Linux (distribuidos entre as subnets privadas)."
   type        = number
-  default     = 2
+  default     = 1
+}
+
+variable "windows_agent_count" {
+  description = "Quantidade de EC2s de Zabbix Agent WINDOWS (Windows Server 2022). 0 desabilita os agents Windows."
+  type        = number
+  default     = 1
+}
+
+variable "windows_agent_instance_type" {
+  description = "Tipo de instancia das EC2s de Zabbix Agent Windows (Windows precisa de mais que t3.micro)."
+  type        = string
+  default     = "t3.small"
+}
+
+variable "windows_ec2_root_volume_size" {
+  description = "Tamanho (GB) do volume raiz das EC2s Windows (>= 30; Windows usa mais disco)."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.windows_ec2_root_volume_size >= 30
+    error_message = "windows_ec2_root_volume_size deve ser >= 30."
+  }
 }
 
 variable "ec2_root_volume_size" {
