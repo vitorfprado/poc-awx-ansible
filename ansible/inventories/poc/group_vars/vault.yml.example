@@ -1,25 +1,15 @@
 ---
-# ============================================================================
-# Variaveis SENSIVEIS. NAO versionar o vault.yml descriptografado.
-# ============================================================================
-# Uso LOCAL (Ansible Vault):
+# Exemplos de variaveis SENSIVEIS. Copie para vault.yml, criptografe e NUNCA
+# versione o vault.yml:
 #   cp vault.yml.example vault.yml
 #   ansible-vault encrypt vault.yml
-#   ansible-playbook ... --ask-vault-pass        (ou --vault-id @prompt)
+#   ansible-playbook ... --ask-vault-pass
+# No AWX, cadastre como Vault Credential.
 #
-# Uso no AWX:
-#   Cadastre estas variaveis como um "Vault Credential" (ou Custom Credential)
-#   e NAO comite o vault.yml. O AWX injeta os segredos em tempo de execucao.
-#
-# O vault.yml real esta no .gitignore.
+# Credenciais de conexao (chave SSH do Linux, usuario/senha WinRM do Windows)
+# NAO ficam aqui - vao na Machine Credential do AWX.
 
-# Endereco do Zabbix Server central (se preferir mante-lo fora do all.yml).
-vault_zabbix_server_address: "zabbix.exemplo.interno"
-
-# PSK do Proxy (gere com:  openssl rand -hex 32)
-vault_zabbix_proxy_psk_identity: "PSK-PROXY-POC"
-vault_zabbix_proxy_psk: "REPLACE_WITH_64_HEX_CHARS_FROM_openssl_rand_hex_32"
-
-# PSK dos Agents (gere com:  openssl rand -hex 32)
+# Exemplo: PSK do Zabbix Agent (so e usado se voce habilitar TLS na role:
+# zabbix_agent_tls_enabled=true). Gere a PSK com: openssl rand -hex 32
 vault_zabbix_agent_psk_identity: "PSK-AGENT-POC"
-vault_zabbix_agent_psk: "REPLACE_WITH_64_HEX_CHARS_FROM_openssl_rand_hex_32"
+vault_zabbix_agent_psk: "REPLACE_WITH_64_HEX_CHARS"

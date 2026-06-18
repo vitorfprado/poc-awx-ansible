@@ -1,13 +1,13 @@
 # {{ ansible_managed }}
-# Zabbix Agent 2 - POC awx-zabbix. NAO editar manualmente (gerenciado pelo Ansible).
+# Zabbix Agent 2 (Linux) - POC awx-zabbix. Gerenciado pelo Ansible.
 
-# Aponta para o PROXY (nao para o Server):
-#  - Server       (passivo): proxy faz checks neste agent
-#  - ServerActive (ativo):   este agent envia dados ao proxy
+# Aponta para o Proxy/Server (zabbix_agent_server*):
+#  - Server       (passivo): o destino faz checks neste agent
+#  - ServerActive (ativo):   este agent envia dados ao destino
 Server={{ zabbix_agent_server }}
 ServerActive={{ zabbix_agent_server_active }}
 
-# Hostname do agent (DEVE bater com o nome cadastrado no Zabbix Server).
+# Hostname (DEVE bater com o nome cadastrado no Zabbix Server).
 Hostname={{ zabbix_agent_hostname }}
 
 ListenPort={{ zabbix_agent_listen_port }}

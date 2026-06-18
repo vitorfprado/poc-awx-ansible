@@ -1,6 +1,4 @@
 ---
-# Configura a POC inteira na ordem correta: PRIMEIRO o proxy, DEPOIS os agents
-# (os agents apontam para o proxy, entao o proxy deve existir antes).
-- import_playbook: install-zabbix-proxy.yml
-- import_playbook: install-zabbix-agents.yml
-- import_playbook: install-zabbix-agents-windows.yml
+# Configura os agents Linux e Windows.
+- import_playbook: configure-linux.yml
+- import_playbook: configure-windows.yml

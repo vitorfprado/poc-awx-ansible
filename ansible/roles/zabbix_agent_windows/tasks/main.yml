@@ -1,12 +1,10 @@
 ---
-- name: Validar que o IP do proxy esta definido
+- name: Validar que o destino (Server/Proxy) esta definido
   ansible.builtin.assert:
     that:
-      - zabbix_proxy_private_ip is defined
-      - zabbix_proxy_private_ip | length > 0
-    fail_msg: >-
-      zabbix_proxy_private_ip esta vazio. Garanta que o grupo zabbix_proxy tem
-      um host com ansible_host preenchido no inventario.
+      - zabbix_agent_server is defined
+      - zabbix_agent_server | length > 0
+    fail_msg: "zabbix_agent_server vazio. Defina zabbix_server_address em group_vars/all.yml."
 
 - name: Baixar o MSI do Zabbix Agent 2 ({{ zabbix_agent_windows_version }})
   ansible.windows.win_get_url:
@@ -33,25 +31,14 @@
   no_log: true
   notify: restart zabbix agent windows
 
-- name: Renderizar zabbix_agent2.conf
+- name: Renderizar o zabbix_agent2.conf
   ansible.windows.win_template:
-    src: zabbix_agent2.conf.j2
-    dest: "{{ zabbix_agent_windows_install_dir }}\\zabbix_agent2.conf"
+    src: zabbix_agent2.win.conf.j2
+    dest: "{{ zabbix_agent_config_path }}"
   notify: restart zabbix agent windows
 
-- name: Habilitar e iniciar o servico do Zabbix Agent 2
+- name: Habilitar e iniciar o servico
   ansible.windows.win_service:
-    name: "{{ zabbix_agent_service }}"
+    name: "{{ zabbix_agent_service_name }}"
     start_mode: auto
     state: started
-
-- name: Aplicar mudancas pendentes (handlers)
-  ansible.builtin.meta: flush_handlers
-
-- name: Validar que o servico esta rodando
-  ansible.windows.win_service_info:
-    name: "{{ zabbix_agent_service }}"
-  register: zabbix_agent_windows_svc
-  failed_when: >-
-    (zabbix_agent_windows_svc.services | length == 0) or
-    (zabbix_agent_windows_svc.services[0].state != 'running')

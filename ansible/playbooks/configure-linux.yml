@@ -1,0 +1,6 @@
+---
+- name: Configurar Zabbix Agent 2 (Linux)
+  hosts: linux
+  become: true
+  roles:
+    - zabbix_agent_linux

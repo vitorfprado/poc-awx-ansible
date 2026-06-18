@@ -1,5 +1,0 @@
----
-- name: restart zabbix proxy
-  ansible.builtin.systemd:
-    name: "{{ zabbix_proxy_service }}"
-    state: restarted

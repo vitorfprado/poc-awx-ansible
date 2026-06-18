@@ -1,31 +1,15 @@
 ---
-# Inventario da POC. Copie para hosts.yml e preencha os IPs privados com os
-# outputs do Terraform:
-#   - zabbix_proxy_private_ip      -> proxy-01.ansible_host
-#   - zabbix_agent_private_ips[*]  -> agent-NN.ansible_host
-#
-# Conter APENAS dados nao sensiveis (hostname logico + IP privado).
-# Usuario/porta/chave de conexao ficam em group_vars/all.yml (defaults) e,
-# no AWX, na Machine Credential.
-#
-# Para adicionar mais agents: basta acrescentar agent-03, agent-04, ... abaixo.
+# Inventario da POC. Copie para hosts.yml e preencha os IPs privados das EC2s
+# (outputs do Terraform). Conter APENAS dados nao sensiveis (nome + IP).
+# Usuario/senha/chave NAO ficam aqui - vao na Machine Credential do AWX.
 all:
   children:
-    zabbix_proxy:
+    linux:
       hosts:
-        proxy-01:
-          ansible_host: "10.0.48.10" # <- zabbix_proxy_private_ip
+        linux-01:
+          ansible_host: "<LINUX_PRIVATE_IP>" # output: zabbix_agent_private_ips
 
-    # Agents LINUX (Amazon Linux 2023, conexao SSH).
-    zabbix_agents:
+    windows:
       hosts:
-        agent-01:
-          ansible_host: "10.0.48.21" # <- zabbix_agent_private_ips["zbx-agent-01"]
-
-    # Agents WINDOWS (Windows Server 2022, conexao WinRM). Conexao em
-    # group_vars/zabbix_agents_windows.yml. Senha = Machine Credential do AWX
-    # (output windows_admin_password do Terraform).
-    zabbix_agents_windows:
-      hosts:
-        agent-win-01:
-          ansible_host: "10.0.64.31" # <- zabbix_agent_windows_private_ips["zbx-agent-win-01"]
+        windows-01:
+          ansible_host: "<WINDOWS_PRIVATE_IP>" # output: zabbix_agent_windows_private_ips

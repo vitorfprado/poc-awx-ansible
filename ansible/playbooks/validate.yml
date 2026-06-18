@@ -1,81 +1,35 @@
 ---
-- name: Validar Zabbix Proxy
-  hosts: zabbix_proxy
+- name: Validar Zabbix Agent (Linux)
+  hosts: linux
   become: true
   gather_facts: false
   tasks:
-    - name: Servico do proxy ativo
-      ansible.builtin.command: "systemctl is-active {{ zabbix_proxy_service | default('zabbix-proxy') }}"
-      register: proxy_active
+    - name: Servico ativo
+      ansible.builtin.command: "systemctl is-active {{ zabbix_agent_service_name }}"
+      register: linux_svc
       changed_when: false
-      failed_when: proxy_active.stdout != "active"
+      failed_when: linux_svc.stdout != "active"
 
-    - name: Porta do proxy escutando localmente ({{ zabbix_proxy_listen_port | default(10051) }})
-      ansible.builtin.wait_for:
-        host: "127.0.0.1"
-        port: "{{ zabbix_proxy_listen_port | default(10051) }}"
-        timeout: 10
+    - name: Arquivo de configuracao presente
+      ansible.builtin.stat:
+        path: "{{ zabbix_agent_config_path }}"
+      register: linux_cfg
+      failed_when: not linux_cfg.stat.exists
 
-    - name: Conectividade Proxy -> Zabbix Server ({{ zabbix_server_address }}:{{ zabbix_server_port | default(10051) }})
-      ansible.builtin.wait_for:
-        host: "{{ zabbix_server_address }}"
-        port: "{{ zabbix_server_port | default(10051) }}"
-        timeout: 10
-      register: proxy_to_server
-      # Em producao deveria passar; na POC o Server central pode nao existir,
-      # entao apenas registra o resultado sem falhar o playbook.
-      ignore_errors: true
-      when:
-        - zabbix_server_address is defined
-        - zabbix_server_address | length > 0
-        - zabbix_server_address != 'CHANGE_ME_zabbix_server'
-
-    - name: Resumo da conectividade Proxy -> Server
-      ansible.builtin.debug:
-        msg: >-
-          Proxy -> {{ zabbix_server_address }}:{{ zabbix_server_port | default(10051) }} =
-          {{ 'OK' if (proxy_to_server is defined and not proxy_to_server.failed | default(false)) else 'NAO alcancavel (verifique se o Zabbix Server existe e o SG/egress)' }}
-      when:
-        - zabbix_server_address is defined
-        - zabbix_server_address != 'CHANGE_ME_zabbix_server'
-
-- name: Validar Zabbix Agents
-  hosts: zabbix_agents
-  become: true
+- name: Validar Zabbix Agent (Windows)
+  hosts: windows
   gather_facts: false
   tasks:
-    - name: Servico do agent ativo
-      ansible.builtin.command: "systemctl is-active {{ zabbix_agent_service | default('zabbix-agent2') }}"
-      register: agent_active
-      changed_when: false
-      failed_when: agent_active.stdout != "active"
-
-    - name: Porta do agent escutando localmente ({{ zabbix_agent_listen_port | default(10050) }})
-      ansible.builtin.wait_for:
-        host: "127.0.0.1"
-        port: "{{ zabbix_agent_listen_port | default(10050) }}"
-        timeout: 10
-
-    - name: Conectividade Agent -> Proxy ({{ zabbix_proxy_private_ip }}:{{ zabbix_proxy_listen_port | default(10051) }})
-      ansible.builtin.wait_for:
-        host: "{{ zabbix_proxy_private_ip }}"
-        port: "{{ zabbix_proxy_listen_port | default(10051) }}"
-        timeout: 10
-
-- name: Validar Zabbix Agents (Windows)
-  hosts: zabbix_agents_windows
-  gather_facts: false
-  tasks:
-    - name: Servico do agent ativo
+    - name: Servico rodando
       ansible.windows.win_service_info:
-        name: "{{ zabbix_agent_service | default('Zabbix Agent 2') }}"
-      register: win_agent_svc
+        name: "{{ zabbix_agent_service_name }}"
+      register: win_svc
       failed_when: >-
-        (win_agent_svc.services | length == 0) or
-        (win_agent_svc.services[0].state != 'running')
+        (win_svc.services | length == 0) or
+        (win_svc.services[0].state != 'running')
 
-    - name: Conectividade Agent -> Proxy ({{ zabbix_proxy_private_ip }}:{{ zabbix_proxy_listen_port | default(10051) }})
-      ansible.windows.win_wait_for:
-        host: "{{ zabbix_proxy_private_ip }}"
-        port: "{{ zabbix_proxy_listen_port | default(10051) }}"
-        timeout: 10
+    - name: Arquivo de configuracao presente
+      ansible.windows.win_stat:
+        path: "{{ zabbix_agent_config_path }}"
+      register: win_cfg
+      failed_when: not win_cfg.stat.exists

@@ -1,6 +1,0 @@
----
-- name: Instalar e configurar Zabbix Proxy
-  hosts: zabbix_proxy
-  become: true
-  roles:
-    - zabbix_proxy

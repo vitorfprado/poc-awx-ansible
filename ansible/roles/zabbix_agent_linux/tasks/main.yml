@@ -1,0 +1,47 @@
+---
+- name: Instalar o repositorio oficial do Zabbix
+  ansible.builtin.dnf:
+    name: "{{ zabbix_repo_rpm_url }}"
+    state: present
+    # O proprio RPM de release traz a chave GPG.
+    disable_gpg_check: true
+
+- name: Instalar o Zabbix Agent 2 ({{ zabbix_agent_package }})
+  ansible.builtin.dnf:
+    name: "{{ zabbix_agent_package }}"
+    state: present
+    update_cache: true
+
+- name: Garantir o diretorio de includes
+  ansible.builtin.file:
+    path: "{{ zabbix_agent_include_dir }}"
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0750"
+
+- name: Provisionar a PSK do agent (quando TLS habilitado)
+  ansible.builtin.copy:
+    content: "{{ zabbix_agent_tls_psk }}"
+    dest: "{{ zabbix_agent_tls_psk_file }}"
+    owner: zabbix
+    group: zabbix
+    mode: "0600"
+  when: zabbix_agent_tls_enabled | bool
+  no_log: true
+  notify: restart zabbix agent
+
+- name: Renderizar o zabbix_agent2.conf
+  ansible.builtin.template:
+    src: zabbix_agent2.conf.j2
+    dest: "{{ zabbix_agent_config_path }}"
+    owner: root
+    group: zabbix
+    mode: "0640"
+  notify: restart zabbix agent
+
+- name: Habilitar e iniciar o servico
+  ansible.builtin.systemd:
+    name: "{{ zabbix_agent_service_name }}"
+    enabled: true
+    state: started

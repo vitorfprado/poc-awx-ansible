@@ -1,6 +1,0 @@
----
-- name: Instalar e configurar Zabbix Agents
-  hosts: zabbix_agents
-  become: true
-  roles:
-    - zabbix_agent

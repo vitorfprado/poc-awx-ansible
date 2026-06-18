@@ -1,17 +1,6 @@
 ---
-# Collections necessarias para a execucao (no AWX, garanta uma Execution
-# Environment que as contenha, ou use este arquivo no Project para sync).
+# Collections necessarias. No AWX, use uma Execution Environment que as contenha
+# (ou sincronize por este arquivo no Project). O Linux usa so ansible.builtin.
 collections:
-  - name: ansible.posix
-    version: ">=1.5.0"
-  - name: community.general
-    version: ">=8.0.0"
-  # Para os agents WINDOWS (win_get_url, win_package, win_service, win_template...).
   - name: ansible.windows
     version: ">=2.0.0"
-  - name: community.windows
-    version: ">=2.0.0"
-  # Opcional/futuro: roles e modulos oficiais Zabbix para gestao via API do
-  # Server (criar hosts, templates, etc.). Esta POC usa roles proprias.
-  # - name: community.zabbix
-  #   version: ">=3.0.0"

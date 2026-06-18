@@ -1,9 +1,9 @@
 # {{ ansible_managed }}
 # Zabbix Agent 2 (Windows) - POC awx-zabbix. Gerenciado pelo Ansible.
 
-# Aponta para o PROXY (nao para o Server):
-#  - Server       (passivo): proxy faz checks neste agent
-#  - ServerActive (ativo):   este agent envia dados ao proxy
+# Aponta para o Proxy/Server (zabbix_agent_server*):
+#  - Server       (passivo): o destino faz checks neste agent
+#  - ServerActive (ativo):   este agent envia dados ao destino
 Server={{ zabbix_agent_server }}
 ServerActive={{ zabbix_agent_server_active }}
 

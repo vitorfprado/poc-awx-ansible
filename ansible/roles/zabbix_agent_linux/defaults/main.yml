@@ -1,0 +1,18 @@
+---
+# Defaults da role zabbix_agent_linux (sobrescritos por group_vars/extra-vars).
+# zabbix_version, zabbix_agent_server* vem de group_vars/all.yml.
+# zabbix_agent_package/service_name/config_path vem de group_vars/linux.yml.
+
+# Repositorio oficial do Zabbix para Amazon Linux 2023.
+zabbix_repo_rpm_url: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/release/amazonlinux/2023/noarch/zabbix-release-latest-{{ zabbix_version }}.amzn2023.noarch.rpm"
+
+zabbix_agent_include_dir: /etc/zabbix/zabbix_agent2.d
+zabbix_agent_hostname: "{{ inventory_hostname }}"
+zabbix_agent_listen_port: 10050
+zabbix_agent_host_metadata: "poc-zabbix-agent-linux"
+
+# TLS/PSK opcional (off por padrao; segredos vem do vault).
+zabbix_agent_tls_enabled: false
+zabbix_agent_tls_psk_identity: ""
+zabbix_agent_tls_psk: ""
+zabbix_agent_tls_psk_file: /etc/zabbix/zabbix_agent2.psk
