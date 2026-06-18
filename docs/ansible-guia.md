@@ -1,11 +1,13 @@
 # Guia detalhado — Ansible da POC Zabbix (Proxy + Agents)
 
+> 📂 Código: [`ansible/`](../ansible/)
+
 Guia **didático** de como esta configuração Ansible funciona: o modelo mental, o
 papel de **cada arquivo**, a explicação de **cada configuração/variável** e um
 **passo a passo** de uso (local e via AWX).
 
-> Procurando só o "como fazer" rápido? Veja o [README.md](README.md). Este guia é o
-> aprofundamento — explica o **porquê** de cada peça.
+> Procurando só o "como fazer" rápido? Veja a [referência rápida](ansible.md). Este
+> guia é o aprofundamento — explica o **porquê** de cada peça.
 
 ## Sumário
 

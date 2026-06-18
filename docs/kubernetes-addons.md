@@ -1,5 +1,7 @@
 # Addons de cluster (Stage 2)
 
+> 📂 Código/manifests: [`kubernetes/addons/`](../kubernetes/addons/)
+
 Addons mínimos instalados via **kubectl** no Stage 2 do pipeline (não pelo
 Terraform), para que o Terraform **não dependa da API do cluster** em
 `plan`/`apply`/`destroy`. Somem junto com o cluster no destroy.

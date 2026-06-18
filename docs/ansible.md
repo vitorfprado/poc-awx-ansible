@@ -1,12 +1,14 @@
 # Ansible — Zabbix Proxy & Agents (POC awx-zabbix)
 
+> 📂 Código: [`ansible/`](../ansible/)
+
 Playbooks/roles que o **AWX** usa para instalar e configurar **Zabbix Proxy** (1 EC2)
 e **Zabbix Agent 2** (N EC2s) na POC. Os agents apontam para o **proxy**; o proxy
 aponta para o **Zabbix Server central** (parametrizado).
 
 > 📘 **Quer entender como tudo funciona (e o porquê de cada configuração)?**
-> Veja o **[GUIA.md](GUIA.md)** — explicação didática, peça por peça. Este README é a
-> referência rápida (setup e comandos).
+> Veja o **[guia detalhado](ansible-guia.md)** — explicação didática, peça por peça.
+> Este documento é a referência rápida (setup e comandos).
 
 > O **Terraform não** instala/configura Zabbix — só cria a infra. Toda a
 > instalação/configuração é feita aqui, via AWX/Ansible.

@@ -1,5 +1,7 @@
 # AWX no EKS — Stage 2 da POC
 
+> 📂 Código/manifests: [`kubernetes/awx/`](../kubernetes/awx/)
+
 Bootstrap do cluster EKS (criado no Stage 1 via Terraform) e instalação do
 **AWX Operator** + **AWX** com **PostgreSQL interno** do operator.
 
@@ -25,7 +27,7 @@ O mínimo para o AWX rodar **já vem do Terraform (Stage 1)**:
 - **EBS CSI driver** (com IRSA) — provisionamento dinâmico de volumes.
 
 No cluster, o Stage 2 adiciona a **StorageClass gp3** (`storageclass.yaml`) e o
-**metrics-server** (`kubectl top` / HPA, em [kubernetes/addons](../addons/README.md)).
+**metrics-server** (`kubectl top` / HPA, em [addons](kubernetes-addons.md)).
 **Não** são instalados cert-manager nem ingress controller (o AWX fica em
 ClusterIP + port-forward), mantendo a POC simples.
 

@@ -1,5 +1,7 @@
 # Zabbix Server no cluster (Stage 2)
 
+> 📂 Código/manifests: [`kubernetes/zabbix-server/`](../kubernetes/zabbix-server/)
+
 Sobe o **Zabbix Server central** dentro do EKS (server + frontend web + PostgreSQL
 interno), para a POC ficar completa: **agent → proxy → server → UI**.
 

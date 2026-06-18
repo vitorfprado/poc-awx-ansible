@@ -1,5 +1,7 @@
 # awx-zabbix-poc — Consumer Terraform
 
+> 📂 Código: [`iac/awx-zabbix-poc/`](../iac/awx-zabbix-poc/)
+
 Provisiona a **infraestrutura base** para uma POC que valida o uso do **AWX
 Operator** em Kubernetes (EKS) para gerenciar, via Ansible, servidores **Zabbix
 Proxy** e **Zabbix Agent** em instâncias EC2.
@@ -54,7 +56,7 @@ Todos do repositório [`vitorfprado/terraform-aws-modules`](https://github.com/v
 
 > Addons de cluster (ex.: **metrics-server**) são instalados no **Stage 2**
 > (kubectl), não pelo Terraform — assim o Terraform não depende da API do cluster
-> para `plan`/`apply`/`destroy`. Ver [kubernetes/addons](../../kubernetes/addons/README.md).
+> para `plan`/`apply`/`destroy`. Ver [addons](kubernetes-addons.md).
 
 ## Variáveis que você precisa preencher
 
@@ -92,7 +94,7 @@ profile e tags. Nenhuma alteração de código é necessária.
 ### Via pipeline (recomendado)
 
 Use o workflow manual do GitHub Actions. Veja
-[docs/pipeline-awx-zabbix-poc.md](../../docs/pipeline-awx-zabbix-poc.md) para
+[a doc da pipeline](pipeline-awx-zabbix-poc.md) para
 `plan`/`apply`/`destroy`, OIDC e variables.
 
 ### Localmente

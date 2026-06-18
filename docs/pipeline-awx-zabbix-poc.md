@@ -5,9 +5,9 @@ POC, em **dois estágios**:
 
 - **Stage 1 — Terraform (infra AWS):** VPC, EKS, EC2s do Zabbix. `plan`/`apply`/`destroy`.
 - **Stage 2 — Bootstrap (addons + AWX + Zabbix Server):** após o `apply`, configura o
-  EKS, instala os addons ([`metrics-server`](../kubernetes/addons/README.md)), o AWX
+  EKS, instala os addons ([`metrics-server`](kubernetes-addons.md)), o AWX
   Operator + AWX (PostgreSQL interno) e o
-  [Zabbix Server](../kubernetes/zabbix-server/README.md) (server + web + PostgreSQL,
+  [Zabbix Server](kubernetes-zabbix-server.md) (server + web + PostgreSQL,
   trapper via NLB interno). Manifests em [`kubernetes/`](../kubernetes/).
 
 - **Workflow:** [`.github/workflows/terraform-awx-zabbix-poc.yml`](../.github/workflows/terraform-awx-zabbix-poc.yml)
@@ -212,4 +212,4 @@ kubectl -n awx port-forward svc/awx-service 8080:80
 # depois: http://localhost:8080
 ```
 
-Detalhes e troubleshooting em [`kubernetes/awx/README.md`](../kubernetes/awx/README.md).
+Detalhes e troubleshooting em [AWX no EKS](kubernetes-awx.md).
