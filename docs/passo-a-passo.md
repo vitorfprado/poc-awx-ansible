@@ -94,36 +94,40 @@ Os playbooks ficam em `ansible/playbooks/`.
 
 | Grupo | Hosts | Variável por host |
 |---|---|---|
-| `zabbix_proxy` | `proxy-01` | `ansible_host: <IP do proxy>` |
-| `zabbix_agents` | `agent-01` | `ansible_host: <IP do agent Linux>` |
-| `zabbix_agents_windows` | `agent-win-01` | `ansible_host: <IP do agent Windows>` |
+| `proxy` | `proxy-01` | `ansible_host: <IP do proxy>` |
+| `linux` | `linux-01` | `ansible_host: <IP do agent Linux>` |
+| `windows` | `windows-01` | `ansible_host: <IP do agent Windows>` |
 
 > Os IPs vêm do passo 3. Mantenha o inventário só com **nome + IP** (sem segredo).
 
 ### 6.3 Credentials
-- **Linux — Machine Credential:** tipo *Machine*, **Username** `ec2-user`, cole a **SSH
-  Private Key** do key pair das EC2s, **Privilege Escalation** = `sudo`.
+- **SSH (proxy + Linux) — Machine Credential:** tipo *Machine*, **Username** `ec2-user`,
+  cole a **SSH Private Key** do key pair das EC2s, **Privilege Escalation** = `sudo`.
 - **Windows — Machine Credential:** tipo *Machine*, **Username** `Administrator`,
   **Password** = `windows_admin_password` (output do Terraform, passo 3). Sem chave.
 - **(Opcional) Vault Credential:** só se usar TLS/PSK — a senha do Ansible Vault.
 
-> Por que duas credenciais? Linux conecta por **SSH (chave)**; Windows por **WinRM
-> (usuário+senha)**. Cada grupo usa a sua.
+> Por que credenciais diferentes? Proxy e Linux conectam por **SSH (chave)**; Windows
+> por **WinRM (usuário+senha)**.
 
 ### 6.4 Job Templates
 **Resources → Templates → Add → Job Template** (associe Inventory + a(s) credencial(is)):
 
 | Template | Playbook | Credenciais |
 |---|---|---|
-| `zbx-configure-all` | `ansible/playbooks/configure-all.yml` | Linux **+** Windows (+ Vault se houver) |
-| `zbx-validate` | `ansible/playbooks/validate.yml` | Linux + Windows |
+| `zbx-configure-all` | `ansible/playbooks/configure-all.yml` | SSH **+** Windows (+ Vault se houver) |
+| `zbx-configure-proxy` | `ansible/playbooks/configure-proxy.yml` | SSH |
+| `zbx-configure-linux` | `ansible/playbooks/configure-linux.yml` | SSH |
+| `zbx-configure-windows` | `ansible/playbooks/configure-windows.yml` | Windows |
+| `zbx-validate` | `ansible/playbooks/validate.yml` | SSH + Windows |
 
-- Em **Variables/Survey**, informe o endereço do server (DNS do NLB):
+- No template do **proxy** (ou no `configure-all`), informe o **Server central** em
+  **Variables/Survey** (os agents não precisam — derivam o IP do proxy do inventário):
   ```yaml
-  zabbix_server_address: "<DNS do NLB do passo 3>"
+  zabbix_server_address: "<DNS do NLB do Zabbix Server, passo 3>"
   ```
-- Em um Job Template, você pode **anexar mais de uma Machine Credential** (uma Linux e
-  uma Windows) — o AWX aplica cada uma conforme o host.
+- Num Job Template, você pode **anexar mais de uma Machine Credential** (SSH e Windows) —
+  o AWX aplica cada uma conforme o host.
 
 ## 7. Rodar os playbooks
 
@@ -132,8 +136,8 @@ Os playbooks ficam em `ansible/playbooks/`.
 2. **Launch** do `zbx-validate` → confere serviços, portas e conectividade
    (agent → proxy, proxy → server).
 
-> Dica de sanidade antes: um **ad-hoc** `ansible all -m ansible.builtin.ping` (Linux) e
-> `ansible zabbix_agents_windows -m ansible.windows.win_ping` confirmam SSH/WinRM.
+> Dica de sanidade antes: ad-hoc `ansible proxy:linux -m ansible.builtin.ping` (SSH) e
+> `ansible windows -m ansible.windows.win_ping` (WinRM) confirmam a conexão.
 
 Depois disto: os hosts estão **prontos**, mas **ainda não aparecem** no Zabbix — falta
 o cadastro manual (passo 8).
@@ -151,9 +155,9 @@ Na UI (passo 5). Aqui é onde você **aprende o fluxo** — nada é automatizado
 ### 8.2 Cadastrar os Hosts (agents)
 **Data collection → Hosts → Create host**, um para cada agent:
 
-| Campo | Agent Linux (`agent-01`) | Agent Windows (`agent-win-01`) |
+| Campo | Agent Linux (`linux-01`) | Agent Windows (`windows-01`) |
 |---|---|---|
-| **Host name** | `agent-01` (= `Hostname` do `.conf`) | `agent-win-01` (= `Hostname` do `.conf`) |
+| **Host name** | `linux-01` (= `Hostname` do `.conf`) | `windows-01` (= `Hostname` do `.conf`) |
 | **Templates** | `Linux by Zabbix agent` | `Windows by Zabbix agent` |
 | **Host groups** | ex.: `POC/Linux` | ex.: `POC/Windows` |
 | **Interfaces → Agent** | IP do agent : `10050` | IP do agent : `10050` |
@@ -179,7 +183,7 @@ Checklist:
 - [ ] `kubectl get pods -n awx` e `-n zabbix` tudo `Running`.
 - [ ] `zbx-configure-all` e `zbx-validate` verdes no AWX.
 - [ ] Proxy `proxy-01` **online**.
-- [ ] `agent-01` (Linux) e `agent-win-01` (Windows) com **ZBX verde**.
+- [ ] `linux-01` (Linux) e `windows-01` (Windows) com **ZBX verde**.
 - [ ] Métricas em **Latest data** dos dois.
 
 ## 10. Troubleshooting

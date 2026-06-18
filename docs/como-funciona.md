@@ -89,10 +89,10 @@ Ansible descreve o **estado desejado** e o aplica via SSH (Linux) ou WinRM (Wind
 
 | Peça | Pergunta | Aqui é... |
 |---|---|---|
-| **Inventário** | *Em quais máquinas?* | `inventories/poc/hosts.yml` (grupos `zabbix_proxy`, `zabbix_agents`, `zabbix_agents_windows`) |
+| **Inventário** | *Em quais máquinas?* | `inventories/poc/hosts.yml` (grupos `proxy`, `linux`, `windows`) |
 | **Variáveis** | *Com quais valores?* | `group_vars/*` + `defaults/` das roles + vault |
 | **Playbook** | *O quê e onde?* | `playbooks/*.yml` (liga grupo → role) |
-| **Role** | *Como (os passos)?* | `roles/zabbix_proxy`, `roles/zabbix_agent`, `roles/zabbix_agent_windows` |
+| **Role** | *Como (os passos)?* | `roles/zabbix_proxy`, `roles/zabbix_agent_linux`, `roles/zabbix_agent_windows` |
 | **Template** | *Como fica o `.conf`?* | `templates/*.conf.j2` |
 
 Regra de ouro: **a role é genérica; os valores específicos vêm de fora** (inventário,
@@ -104,9 +104,9 @@ group_vars, vault, AWX). Por isso a role não tem IP/senha dentro.
 
 ```
 configure-all.yml
- ├─ install-zabbix-proxy.yml          → zabbix_proxy          → role zabbix_proxy
- ├─ install-zabbix-agents.yml         → zabbix_agents         → role zabbix_agent (Linux)
- └─ install-zabbix-agents-windows.yml → zabbix_agents_windows → role zabbix_agent_windows
+ ├─ configure-proxy.yml    → proxy   → role zabbix_proxy
+ ├─ configure-linux.yml    → linux   → role zabbix_agent_linux
+ └─ configure-windows.yml  → windows → role zabbix_agent_windows
 ```
 
 Para **cada host**, o Ansible: (1) monta as variáveis; (2) conecta (SSH ou WinRM);
@@ -119,15 +119,15 @@ Para **cada host**, o Ansible: (1) monta as variáveis; (2) conecta (SSH ou WinR
 ```yaml
 all:
   children:
-    zabbix_proxy:
+    proxy:
       hosts: { proxy-01: { ansible_host: "10.0.48.10" } }
-    zabbix_agents:                       # Linux (SSH)
-      hosts: { agent-01: { ansible_host: "10.0.48.21" } }
-    zabbix_agents_windows:               # Windows (WinRM)
-      hosts: { agent-win-01: { ansible_host: "10.0.64.31" } }
+    linux:                       # agent Linux (SSH)
+      hosts: { linux-01: { ansible_host: "10.0.48.21" } }
+    windows:                     # agent Windows (WinRM)
+      hosts: { windows-01: { ansible_host: "10.0.64.31" } }
 ```
 
-- Nomes (`proxy-01`, `agent-01`...) são **lógicos**; o que conecta é o `ansible_host`
+- Nomes (`proxy-01`, `linux-01`...) são **lógicos**; o que conecta é o `ansible_host`
   (IP privado). Esse nome lógico vira o `Hostname` do Zabbix.
 - Só dados **não sensíveis** (nome + IP). Usuário/porta/credencial ficam em `group_vars`
   e na Machine Credential do AWX.
@@ -136,45 +136,47 @@ all:
 
 ### group_vars — valores por grupo
 
-- **`all.yml`** (todos): conexão padrão Linux (`ansible_user: ec2-user`, porta 22,
-  `ansible_python_interpreter`), `zabbix_version`, `zabbix_server_address`
-  (parametrizado, default placeholder), `zabbix_tls_enabled`.
-  - Padrão `{{ x | default('...') }}` = "use `x` se existir, senão este valor" — permite
-    sobrescrever por extra-var sem editar arquivo.
-- **`zabbix_proxy.yml`**: `zabbix_proxy_hostname = inventory_hostname`, `zabbix_proxy_mode: 0`
-  (active), `zabbix_proxy_database: sqlite3`, PSK do vault.
-- **`zabbix_agents.yml`** e **`zabbix_agents_windows.yml`**: a parte "esperta" — derivam
-  o **IP do proxy do próprio inventário**:
+- **`all.yml`** (todos): `zabbix_version`, `zabbix_server_address` (o **Server central**,
+  para onde o proxy reporta), `zabbix_server_port` — e a parte "esperta": os **agents
+  derivam o IP do proxy do próprio inventário**:
   ```yaml
-  zabbix_proxy_private_ip: "{{ hostvars[groups['zabbix_proxy'][0]].ansible_host }}"
+  zabbix_agent_server:        "{{ hostvars[groups['proxy'][0]].ansible_host }}"
+  zabbix_agent_server_active: "{{ hostvars[groups['proxy'][0]].ansible_host }}"
   ```
-  Lendo de dentro pra fora: `groups['zabbix_proxy']` → `['proxy-01']`; `[0]` → `'proxy-01'`;
+  Lendo de dentro pra fora: `groups['proxy']` → `['proxy-01']`; `[0]` → `'proxy-01'`;
   `hostvars['proxy-01'].ansible_host` → o IP do proxy. **Sem hardcode**: troque o proxy e
   os agents continuam certos.
-  - O `zabbix_agents_windows.yml` adiciona a **conexão WinRM** (ver [seção 9](#9-linux-x-windows)).
+- **`proxy.yml`**: conexão **SSH** (`ec2-user`) + `zabbix_proxy_package` /
+  `zabbix_proxy_service_name` / `zabbix_proxy_config_path`. (Modo active e SQLite ficam
+  nos `defaults` da role `zabbix_proxy`.)
+- **`linux.yml`**: conexão **SSH** (`ec2-user`) + `zabbix_agent_package` /
+  `zabbix_agent_service_name` / `zabbix_agent_config_path`.
+- **`windows.yml`**: conexão **WinRM** (`Administrator`, porta 5986, `transport: basic`,
+  `cert_validation: ignore`) + `zabbix_agent_service_name` / `zabbix_agent_config_path`.
 
 ## 7. Roles, templates e handlers
 
 Cada role tem `defaults/` (valores base, menor precedência), `tasks/` (passos),
 `handlers/` (ações sob demanda) e `templates/` (arquivos gerados).
 
-**Passo a passo da role (proxy, idêntico em espírito ao agent):**
+**Passo a passo da role (proxy; o agent Linux é igual em espírito):**
 1. instala o repositório oficial do Zabbix (RPM de release; `disable_gpg_check` porque é
    esse RPM que traz a chave GPG);
 2. instala o pacote (`zabbix-proxy-sqlite3`);
 3. garante diretórios;
 4. PSK (só se TLS; `no_log: true` para não vazar no log);
 5. **renderiza o `.conf`** (template) → `notify` do handler;
-6. habilita+inicia o serviço (sobe no boot);
-7. `flush_handlers` (aplica o restart pendente **antes** de validar);
-8. valida o serviço ativo.
+6. habilita+inicia o serviço (sobe no boot).
+
+A **validação** (serviço ativo + arquivo de config presente) fica no `validate.yml`,
+separada das roles de instalação.
 
 Conceitos-chave:
 - **`notify` + handler = idempotência:** a task de template só *avisa*; o handler
   `restart` roda **uma vez, e só se o `.conf` mudou**. Rodar de novo sem mudança = sem
   restart.
-- **`assert` no início do agent:** falha cedo se o `zabbix_proxy_private_ip` estiver
-  vazio (evita configurar agent "apontando pro nada").
+- **`assert` no agent Windows:** falha cedo se o `zabbix_agent_server` estiver vazio
+  (evita configurar um agent "apontando pro nada").
 
 **Templates Jinja2** (`.conf.j2`) viram o arquivo real substituindo `{{ vars }}`. Se o
 resultado for igual ao arquivo atual, nada muda (idempotência).
@@ -211,7 +213,7 @@ resultado for igual ao arquivo atual, nada muda (idempotência).
 A grande diferença está na **instalação/conexão**, não nas diretivas do Zabbix (que são
 as mesmas). Por isso há **uma role por SO**:
 
-| Aspecto | Agent **Linux** (`zabbix_agent`) | Agent **Windows** (`zabbix_agent_windows`) |
+| Aspecto | Agent **Linux** (`zabbix_agent_linux`) | Agent **Windows** (`zabbix_agent_windows`) |
 |---|---|---|
 | Conexão Ansible | **SSH** (`ec2-user`, porta 22) | **WinRM** HTTPS (`Administrator`, porta 5986) |
 | Credencial AWX | Machine (chave SSH) | Machine **Windows** (usuário + senha) |
@@ -219,7 +221,7 @@ as mesmas). Por isso há **uma role por SO**:
 | Serviço | `systemd` (`zabbix-agent2`) | `win_service` (`Zabbix Agent 2`) |
 | Config | `/etc/zabbix/zabbix_agent2.conf` | `C:\Program Files\Zabbix Agent 2\zabbix_agent2.conf` |
 | Módulos | `ansible.builtin.*` | `ansible.windows.*` |
-| Grupo no inventário | `zabbix_agents` | `zabbix_agents_windows` |
+| Grupo no inventário | `linux` | `windows` |
 
 **O que NÃO muda:** o `.conf` (mesmas diretivas `Server`/`ServerActive`/`Hostname`), as
 portas Zabbix (10050/10051), e — na UI do Zabbix — o cadastro do host (só muda o
