@@ -117,9 +117,9 @@ variable "eks_admin_principal_arns" {
 ###############################################################################
 
 variable "ssh_key_name" {
-  description = "Nome de um key pair EC2 existente para acesso SSH (simula VPN+SSH do cliente). Quando null, usa-se somente SSM Session Manager."
+  description = "Nome de um key pair EC2 existente para acesso SSH (simula VPN+SSH do cliente). Aplica-se ao Proxy e aos agents Linux. Quando null, usa-se somente SSM Session Manager."
   type        = string
-  default     = null
+  default     = "poc-ansible"
 }
 
 variable "proxy_instance_type" {

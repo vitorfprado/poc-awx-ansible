@@ -36,9 +36,9 @@ eks_public_access_cidrs = ["0.0.0.0/0"]
 eks_admin_principal_arns = ["arn:aws:iam::650687537445:user/vitor.prado"]
 
 # --- EC2s Zabbix -------------------------------------------------------------
-# Nome de um key pair EC2 ja existente na regiao. Deixe comentado para usar
-# somente SSM Session Manager (sem chave SSH).
-# ssh_key_name = "minha-chave"
+# Nome de um key pair EC2 ja existente na regiao (Proxy + agents Linux).
+# Use null/comente para acesso somente via SSM Session Manager.
+ssh_key_name = "poc-ansible"
 
 proxy_instance_type = "t3.micro"
 agent_instance_type = "t3.micro"
