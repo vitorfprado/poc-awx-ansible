@@ -4,12 +4,11 @@
 # Versao do Zabbix (controla pacote/MSI/repo). Troque AQUI para mudar de versao.
 zabbix_version: "7.0"
 
-# Endereco do Zabbix Proxy ou Server para onde os agents reportam.
-# Ex.: IP privado do Zabbix Proxy, ou DNS do NLB do Zabbix Server.
-zabbix_server_address: "CHANGE_ME_zabbix_endpoint"
+# Zabbix Server CENTRAL: o PROXY reporta para ele (ex.: DNS do NLB do server).
+zabbix_server_address: "CHANGE_ME_zabbix_server"
 zabbix_server_port: 10051
 
-# Server (passivo) e ServerActive (ativo) dos agents. Por padrao, ambos apontam
-# para zabbix_server_address. Sobrescreva se quiser destinos diferentes.
-zabbix_agent_server: "{{ zabbix_server_address }}"
-zabbix_agent_server_active: "{{ zabbix_server_address }}"
+# Os AGENTS reportam para o PROXY. O IP do proxy e derivado do inventario
+# (primeiro host do grupo proxy) - sem hardcode.
+zabbix_agent_server: "{{ hostvars[groups['proxy'][0]].ansible_host }}"
+zabbix_agent_server_active: "{{ hostvars[groups['proxy'][0]].ansible_host }}"

@@ -1,4 +1,6 @@
 ---
-# Configura os agents Linux e Windows.
+# Configura a POC na ordem certa: PRIMEIRO o proxy (os agents apontam para ele),
+# depois os agents Linux e Windows.
+- import_playbook: configure-proxy.yml
 - import_playbook: configure-linux.yml
 - import_playbook: configure-windows.yml

@@ -1,0 +1,29 @@
+---
+# Defaults da role zabbix_proxy (Zabbix Proxy com SQLite, Amazon Linux 2023).
+# zabbix_version, zabbix_server_address/port vem de group_vars/all.yml.
+# zabbix_proxy_package/service_name/config_path vem de group_vars/proxy.yml.
+
+zabbix_repo_rpm_url: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/release/amazonlinux/2023/noarch/zabbix-release-latest-{{ zabbix_version }}.amzn2023.noarch.rpm"
+
+zabbix_proxy_include_dir: /etc/zabbix/zabbix_proxy.conf.d
+zabbix_proxy_hostname: "{{ inventory_hostname }}"
+zabbix_proxy_mode: 0 # 0=active (proxy conecta no server), 1=passive
+zabbix_proxy_listen_port: 10051
+
+# Banco local SQLite (schema criado automaticamente na 1a subida).
+zabbix_proxy_db_path: /var/lib/zabbix/zabbix_proxy.db
+
+# Tuning enxuto para POC.
+zabbix_proxy_cache_size: "32M"
+zabbix_proxy_history_cache_size: "16M"
+zabbix_proxy_history_index_cache_size: "8M"
+zabbix_proxy_timeout: 4
+zabbix_proxy_offline_buffer: 1
+zabbix_proxy_config_frequency: 3600
+zabbix_proxy_data_sender_frequency: 1
+
+# TLS/PSK opcional (off por padrao; segredos vem do vault).
+zabbix_proxy_tls_enabled: false
+zabbix_proxy_tls_psk_identity: ""
+zabbix_proxy_tls_psk: ""
+zabbix_proxy_tls_psk_file: /etc/zabbix/zabbix_proxy.psk

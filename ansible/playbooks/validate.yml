@@ -1,4 +1,21 @@
 ---
+- name: Validar Zabbix Proxy
+  hosts: proxy
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Servico ativo
+      ansible.builtin.command: "systemctl is-active {{ zabbix_proxy_service_name }}"
+      register: proxy_svc
+      changed_when: false
+      failed_when: proxy_svc.stdout != "active"
+
+    - name: Arquivo de configuracao presente
+      ansible.builtin.stat:
+        path: "{{ zabbix_proxy_config_path }}"
+      register: proxy_cfg
+      failed_when: not proxy_cfg.stat.exists
+
 - name: Validar Zabbix Agent (Linux)
   hosts: linux
   become: true

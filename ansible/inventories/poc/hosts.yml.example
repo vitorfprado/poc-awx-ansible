@@ -4,6 +4,11 @@
 # Usuario/senha/chave NAO ficam aqui - vao na Machine Credential do AWX.
 all:
   children:
+    proxy:
+      hosts:
+        proxy-01:
+          ansible_host: "<PROXY_PRIVATE_IP>" # output: zabbix_proxy_private_ip
+
     linux:
       hosts:
         linux-01:

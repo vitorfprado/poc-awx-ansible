@@ -1,0 +1,6 @@
+---
+- name: Configurar Zabbix Proxy
+  hosts: proxy
+  become: true
+  roles:
+    - zabbix_proxy
