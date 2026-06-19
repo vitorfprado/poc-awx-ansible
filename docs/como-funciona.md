@@ -11,7 +11,7 @@ Documento **didático**: explica a **ideia** da POC, como as peças se encaixam 
 3. [As peças e como se encaixam](#3-as-peças)
 4. [Como o Ansible funciona aqui (modelo mental)](#4-modelo-mental-do-ansible)
 5. [Fluxo de uma execução](#5-fluxo-de-uma-execução)
-6. [Inventário e `group_vars`](#6-inventário-e-group_vars)
+6. [Inventário e variáveis (no AWX)](#6-inventário-e-variáveis-no-awx)
 7. [Roles, templates e handlers](#7-roles-templates-e-handlers)
 8. [As diretivas do Zabbix explicadas](#8-diretivas-do-zabbix)
 9. [Precedência de variáveis](#9-precedência-de-variáveis)
@@ -85,14 +85,14 @@ Ansible descreve o **estado desejado** e o aplica via SSH.
 
 | Peça | Pergunta | Aqui é... |
 |---|---|---|
-| **Inventário** | *Em quais máquinas?* | `inventories/poc/hosts.yml` (grupos `proxy`, `linux`) |
-| **Variáveis** | *Com quais valores?* | `group_vars/*` + `defaults/` das roles + vault |
+| **Inventário** | *Em quais máquinas?* | Inventário do **AWX** (grupos `proxy`, `linux`) |
+| **Variáveis** | *Com quais valores?* | vars do inventário no **AWX** (Inventory/grupos) + `defaults/` das roles |
 | **Playbook** | *O quê e onde?* | `playbooks/*.yml` (liga grupo → role) |
 | **Role** | *Como (os passos)?* | `roles/zabbix_proxy`, `roles/zabbix_agent_linux` |
 | **Template** | *Como fica o `.conf`?* | `templates/*.conf.j2` |
 
-Regra de ouro: **a role é genérica; os valores específicos vêm de fora** (inventário,
-group_vars, vault, AWX). Por isso a role não tem IP/senha dentro.
+Regra de ouro: **a role é genérica; os valores específicos vêm de fora** (inventário e
+variáveis do AWX). Por isso a role não tem IP/senha dentro.
 
 ## 5. Fluxo de uma execução
 
@@ -107,43 +107,43 @@ configure-all.yml
 Para **cada host**, o Ansible: (1) monta as variáveis; (2) conecta (SSH);
 (3) roda as tasks da role; (4) se o `.conf` mudou, dispara o **handler** de restart.
 
-## 6. Inventário e group_vars
+## 6. Inventário e variáveis (no AWX)
+
+O inventário e as variáveis ficam **cadastrados no AWX (GUI)** — não há `inventories/`
+no repositório. O AWX com inventário manual **não lê `group_vars/` do repo**, então tudo
+é preenchido no GUI. As variáveis ficam em **três níveis** (do geral ao específico).
 
 ### Inventário — quais máquinas
 
-```yaml
-all:
-  children:
-    proxy:
-      hosts: { proxy-01: { ansible_host: "10.0.48.10" } }
-    linux:                       # agent Linux (SSH)
-      hosts: { linux-01: { ansible_host: "10.0.48.21" } }
+Um Inventory (`zbx-poc`) com dois grupos e um host cada:
+
+```
+proxy   → host proxy-01  (ansible_host: <IP privado do proxy>)
+linux   → host linux-01  (ansible_host: <IP privado do agent>)
 ```
 
 - Nomes (`proxy-01`, `linux-01`) são **lógicos**; o que conecta é o `ansible_host`
   (IP privado). Esse nome lógico vira o `Hostname` do Zabbix.
-- Só dados **não sensíveis** (nome + IP). Usuário/porta/credencial ficam em `group_vars`
-  e na Machine Credential do AWX.
-- Crescer = adicionar uma linha. O `hosts.yml` real está no `.gitignore` (versionamos
-  só o `.example`).
+- Só dados **não sensíveis** (nome + IP). Usuário/credencial ficam na **Machine
+  Credential** do AWX. Crescer = adicionar um host no grupo.
 
-### group_vars — valores por grupo
+### Variáveis — por nível
 
-- **`all.yml`** (todos): `zabbix_version`, `zabbix_server_address` (o **Server central**,
-  para onde o proxy reporta), `zabbix_server_port` — e a parte "esperta": o **agent
-  deriva o IP do proxy do próprio inventário**:
-  ```yaml
-  zabbix_agent_server:        "{{ hostvars[groups['proxy'][0]].ansible_host }}"
-  zabbix_agent_server_active: "{{ hostvars[groups['proxy'][0]].ansible_host }}"
-  ```
-  Lendo de dentro pra fora: `groups['proxy']` → `['proxy-01']`; `[0]` → `'proxy-01'`;
-  `hostvars['proxy-01'].ansible_host` → o IP do proxy. **Sem hardcode**: troque o proxy e
-  o agent continua certo.
-- **`proxy.yml`**: conexão **SSH** (`ec2-user`) + `zabbix_proxy_package` /
+- **Nível Inventory** (geral/fixo): `zabbix_version`, `zabbix_server_port`.
+- **Grupo `proxy`**: conexão **SSH** (`ec2-user`) + `zabbix_server_address` (o **Server
+  central** para onde *este* proxy reporta) + `zabbix_proxy_package` /
   `zabbix_proxy_service_name` / `zabbix_proxy_config_path`. (Modo active e SQLite ficam
-  nos `defaults` da role `zabbix_proxy`.)
-- **`linux.yml`**: conexão **SSH** (`ec2-user`) + `zabbix_agent_package` /
-  `zabbix_agent_service_name` / `zabbix_agent_config_path`.
+  nos `defaults` da role.)
+- **Grupo `linux`**: conexão **SSH** (`ec2-user`) + `zabbix_agent_server` /
+  `zabbix_agent_server_active` (o **IP do proxy** para onde *estes* agents reportam) +
+  `zabbix_agent_package` / `zabbix_agent_service_name` / `zabbix_agent_config_path`.
+
+> **Por que o IP do proxy é explícito no grupo `linux`?** Assim cada grupo de agents
+> aponta para o **seu** proxy — o modelo escala para **vários proxies** (um grupo de
+> agents por proxy), sem um ponto central de hardcode.
+
+> A referência completa do que preencher em cada nível está em
+> [`ansible/README.md`](../ansible/README.md).
 
 ## 7. Roles, templates e handlers
 
@@ -202,20 +202,21 @@ resultado for igual ao arquivo atual, nada muda (idempotência).
 Do mais fraco ao mais forte (simplificado):
 
 ```
-role defaults/  <  group_vars/  <  vault  ≈  inventário  <  extra-vars (AWX survey / -e)
-   (base)           (POC)           (segredo)   (host/IP)        (manda sempre)
+role defaults/  <  vars do Inventory  <  vars de grupo  <  extra-vars (AWX survey / -e)
+   (base)            (geral/fixo)         (proxy/linux)        (manda sempre)
 ```
 
-Por isso o `zabbix_server_address` (o DNS do NLB) é passado como **extra-var/survey** no
-Job Template do AWX — vence tudo, sem hardcode no código.
+Por isso o `zabbix_server_address` (o DNS do NLB) fica nas **vars do grupo `proxy`** no
+inventário do AWX — vence o `defaults` da role, sem hardcode no código. (Se preferir,
+ele também pode ser passado como **survey/extra-var** no Job Template, que vence tudo.)
 
 ## 10. Modelo de segurança
 
 1. **Nenhuma chave/senha no repositório.** SSH → Machine Credential do AWX. O
    `.gitignore` bloqueia `*.pem`/`*.key`.
-2. **Segredos no Vault** (PSK): `vault.yml` criptografado (`ansible-vault encrypt`),
-   nunca versionado; no AWX vira um **Vault Credential**.
-3. **`.example` para tudo sensível/ambiente-específico** (`hosts.yml`, `vault.yml`).
+2. **Segredos no Vault** (PSK): no AWX vira um **Vault Credential** (nunca versionado).
+3. **Dados de ambiente fora do repo** — IPs e endereços ficam no inventário do AWX (GUI),
+   não em arquivos versionados.
 4. **`no_log: true`** nas tasks de PSK.
 5. **Inventário sem segredo** — só nome lógico + IP.
 
@@ -224,7 +225,7 @@ Job Template do AWX — vence tudo, sem hardcode no código.
 | Termo | Significado |
 |---|---|
 | **Inventário / Grupo** | Lista de hosts / conjunto que recebe as mesmas vars e role. |
-| **`group_vars`** | Variáveis de um grupo (arquivo com o nome do grupo). |
+| **`group_vars` / vars de grupo** | Variáveis aplicadas a todos os hosts de um grupo (aqui, no inventário do AWX). |
 | **Role** | Unidade reutilizável (tasks/handlers/templates/defaults). |
 | **Handler** | Task que só roda quando notificada (restart on-change). |
 | **Template (Jinja2)** | `.j2` que vira config real substituindo `{{ vars }}`. |
