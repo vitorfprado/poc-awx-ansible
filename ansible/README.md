@@ -78,6 +78,7 @@ ansible_connection: httpapi
 ansible_network_os: community.zabbix.zabbix
 ansible_httpapi_port: 80
 ansible_httpapi_use_ssl: false
+ansible_zabbix_url_path: ""   # frontend na raiz (default do plugin e "zabbix")
 ```
 Host: `zabbix-api` → `ansible_host: zabbix-web.zabbix.svc.cluster.local` (Service ClusterIP
 do frontend, alcançável de dentro do cluster). O **token** da API vem da credencial do AWX
