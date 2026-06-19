@@ -20,7 +20,7 @@ zabbix_proxy_history_cache_size: "16M"
 zabbix_proxy_history_index_cache_size: "8M"
 zabbix_proxy_timeout: 4
 zabbix_proxy_offline_buffer: 1
-zabbix_proxy_config_frequency: 3600
+zabbix_proxy_config_frequency: 60
 zabbix_proxy_data_sender_frequency: 1
 
 # TLS/PSK opcional (off por padrao; segredos vem do vault).
