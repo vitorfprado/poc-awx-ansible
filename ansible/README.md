@@ -11,16 +11,18 @@ aponta para o **proxy**; o **proxy** aponta para o **Zabbix Server central**.
 ## 1. Estrutura de pastas
 
 ```
+collections/requirements.yml     # community.zabbix — o AWX instala no sync do projeto
 ansible/
-├── requirements.yml            # sem collections externas (Linux usa ansible.builtin)
 ├── playbooks/
-│   ├── configure-proxy.yml      # roda no grupo `proxy` → role zabbix_proxy
-│   ├── configure-linux.yml      # roda no grupo `linux` → role zabbix_agent_linux
+│   ├── configure-proxy.yml      # roda no grupo `proxy` → role zabbix_proxy (SSH)
+│   ├── configure-linux.yml      # roda no grupo `linux` → role zabbix_agent_linux (SSH)
 │   ├── configure-all.yml        # proxy → linux (ordem certa)
+│   ├── register-zabbix.yml      # grupo `zabbix_server` → role zabbix_register (API HTTP)
 │   └── validate.yml             # serviço ativo + config presente (proxy + agent)
 └── roles/
     ├── zabbix_proxy/           # dnf + template + systemd (restart on-change)
-    └── zabbix_agent_linux/     # dnf + template + systemd (restart on-change)
+    ├── zabbix_agent_linux/     # dnf + template + systemd (restart on-change)
+    └── zabbix_register/        # API: host group + proxy + host (community.zabbix)
 ```
 
 > O `ansible.cfg` da raiz do repositório define `roles_path = ansible/roles` (o AWX roda
@@ -68,16 +70,51 @@ Host: `linux-01` → `ansible_host: <IP privado do agent>` (output `zabbix_agent
 > **Multiplos proxies:** cada grupo de agents aponta para o seu proxy via
 > `zabbix_agent_server*` no group var daquele grupo — sem hardcode central.
 
+### Grupo `zabbix_server` (registro via API)
+Conexão **HTTP** com a API do Zabbix (não SSH). O `register-zabbix.yml` roda contra este
+grupo e deriva proxies/hosts dos grupos `proxy`/`linux` do mesmo inventário.
+```yaml
+ansible_connection: httpapi
+ansible_network_os: community.zabbix.zabbix
+ansible_httpapi_port: 80
+ansible_httpapi_use_ssl: false
+```
+Host: `zabbix-api` → `ansible_host: zabbix-web.zabbix.svc.cluster.local` (Service ClusterIP
+do frontend, alcançável de dentro do cluster). O **token** da API vem da credencial do AWX
+(ver §3), injetado como `ansible_zabbix_auth_key`.
+
 ## 3. Credenciais e Job Templates no AWX
 
+**Credenciais:**
 - **Machine Credential (SSH):** *Username* `ec2-user`, cole a **chave privada** do key
-  pair das EC2s, *Privilege Escalation* = `sudo`. (Proxy e agent usam a mesma.)
-- **Job Templates** (Inventory `zbx-poc` + a Machine Credential):
+  pair das EC2s, *Privilege Escalation* = `sudo`. (Proxy e agent usam a mesma.) Usada nos
+  templates que conectam por SSH.
+- **Zabbix API Token (Custom Credential Type):** guarda o token da API. Crie em
+  *Administration → Credential Types* um tipo com:
+  - *Input configuration:*
+    ```yaml
+    fields:
+      - id: zabbix_token
+        type: string
+        label: Zabbix API Token
+        secret: true
+    required: [zabbix_token]
+    ```
+  - *Injector configuration:*
+    ```yaml
+    extra_vars:
+      ansible_zabbix_auth_key: '{{ zabbix_token }}'
+    ```
+  Depois crie uma **Credential** desse tipo colando o token. O token é gerado na UI do
+  Zabbix em *Users → API tokens* (use o usuário `Admin`).
 
-| Template | Playbook | Faz |
-|---|---|---|
-| `zbx-configure-all` | `ansible/playbooks/configure-all.yml` | proxy → linux (ordem certa) |
-| `zbx-validate` | `ansible/playbooks/validate.yml` | serviço ativo + config presente |
+**Job Templates** (Inventory `zbx-poc`):
+
+| Template | Playbook | Credencial | Faz |
+|---|---|---|---|
+| `zbx-configure-all` | `ansible/playbooks/configure-all.yml` | Machine (SSH) | proxy → linux (ordem certa) |
+| `zbx-validate` | `ansible/playbooks/validate.yml` | Machine (SSH) | serviço ativo + config presente |
+| `zbx-register` | `ansible/playbooks/register-zabbix.yml` | Zabbix API Token | host group + proxy + host na API |
 
 > Para TLS/PSK, habilite na role (`*_tls_enabled: true`) e cadastre um **Vault
 > Credential** com a PSK.

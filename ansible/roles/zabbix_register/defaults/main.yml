@@ -1,0 +1,17 @@
+---
+# Defaults da role zabbix_register. Cria/garante (idempotente) no Zabbix Server,
+# via API (community.zabbix): host group, proxies e hosts Linux.
+# A conexao httpapi + token vem das vars do grupo zabbix_server (inventario AWX).
+
+# Host group onde os hosts Linux entram.
+zabbix_register_host_group: "POC/Linux"
+
+# Template Linux padrao do Zabbix 7.0 (checks via agent).
+zabbix_register_linux_template: "Linux by Zabbix agent"
+
+# Proxy ao qual os hosts Linux serao vinculados (= Hostname do proxy).
+# Em cenario multi-proxy, sobrescreva por grupo de agents.
+zabbix_register_proxy_name: "proxy-01"
+
+# Porta do agent (interface passiva: proxy -> agent).
+zabbix_register_agent_port: "10050"

@@ -1,0 +1,8 @@
+---
+# Collections instaladas pelo AWX no sync do projeto (galaxy).
+# community.zabbix: modulos da API do Zabbix (proxy, host, hostgroup) usados
+# pelo playbook register-zabbix.yml. As dependencias (ansible.netcommon etc.)
+# sao resolvidas automaticamente pelo ansible-galaxy.
+collections:
+  - name: community.zabbix
+    version: ">=3.0.0"

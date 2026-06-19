@@ -1,0 +1,9 @@
+---
+# Registra (idempotente) no Zabbix Server, via API, o que o Ansible ja instalou:
+# host group + proxies + hosts Linux vinculados ao proxy. Conecta na API HTTP do
+# Zabbix (nao por SSH) - ver group_vars do grupo zabbix_server no inventario do AWX.
+- name: Registrar proxy e hosts no Zabbix Server (via API)
+  hosts: zabbix_server
+  gather_facts: false
+  roles:
+    - zabbix_register

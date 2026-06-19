@@ -1,0 +1,35 @@
+---
+# Os proxies e hosts sao derivados do proprio inventario (grupos proxy/linux),
+# entao adicionar uma EC2 ao inventario ja a registra na proxima execucao.
+
+- name: Garantir o host group
+  community.zabbix.zabbix_hostgroup:
+    host_groups:
+      - "{{ zabbix_register_host_group }}"
+    state: present
+
+- name: Garantir os proxies (modo active)
+  community.zabbix.zabbix_proxy:
+    proxy_name: "{{ item }}"
+    operating_mode: active
+    state: present
+  loop: "{{ groups['proxy'] | default([]) }}"
+
+- name: Garantir os hosts Linux vinculados ao proxy
+  community.zabbix.zabbix_host:
+    host_name: "{{ item }}"
+    host_groups:
+      - "{{ zabbix_register_host_group }}"
+    link_templates:
+      - "{{ zabbix_register_linux_template }}"
+    monitored_by: proxy
+    proxy: "{{ zabbix_register_proxy_name }}"
+    status: enabled
+    interfaces:
+      - type: agent
+        main: 1
+        useip: 1
+        ip: "{{ hostvars[item].ansible_host }}"
+        port: "{{ zabbix_register_agent_port }}"
+    state: present
+  loop: "{{ groups['linux'] | default([]) }}"

@@ -1,5 +1,0 @@
----
-# Sem collections externas obrigatorias: o fluxo (proxy + agent Linux) usa apenas
-# ansible.builtin, ja incluso no Ansible. Mantido como placeholder para futuras
-# collections (ex.: community.zabbix, se um dia o cadastro no Zabbix for automatizado).
-collections: []
