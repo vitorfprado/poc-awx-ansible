@@ -343,8 +343,13 @@ jobs:
             echo "  ...ainda nao ($i/60)"
             sleep 10
           done
-          kubectl -n awx rollout status deployment/awx-web  --timeout=900s && \
-          kubectl -n awx rollout status deployment/awx-task --timeout=900s
+          # Espera pela condition Available (e nao rollout status): no 1o boot o
+          # awx-task aguarda o job de migracao + pull da imagem do EE e costuma
+          # passar do progressDeadlineSeconds (600s) do Deployment. O rollout
+          # status aborta na hora ao ver ProgressDeadlineExceeded, mesmo o pod
+          # ficando Ready logo depois. O wait por Available ignora esse deadline.
+          kubectl -n awx wait --for=condition=Available deployment/awx-web  --timeout=1200s && \
+          kubectl -n awx wait --for=condition=Available deployment/awx-task --timeout=1200s
           rc=$?
           if [ $rc -ne 0 ]; then
             echo "::group::Diagnostico (AWX)"
@@ -393,9 +398,12 @@ jobs:
             kubectl -n zabbix create secret generic zabbix-db \
               --from-literal=POSTGRES_PASSWORD="$(openssl rand -hex 16)"
           kubectl apply -k kubernetes/zabbix-server
-          kubectl -n zabbix rollout status deployment/zabbix-postgres --timeout=300s && \
-          kubectl -n zabbix rollout status deployment/zabbix-server  --timeout=600s && \
-          kubectl -n zabbix rollout status deployment/zabbix-web     --timeout=600s
+          # wait por Available (e nao rollout status): no 1o boot o zabbix-server
+          # aguarda o Postgres + importacao do schema e pode passar do
+          # progressDeadlineSeconds do Deployment (rollout status abortaria).
+          kubectl -n zabbix wait --for=condition=Available deployment/zabbix-postgres --timeout=300s && \
+          kubectl -n zabbix wait --for=condition=Available deployment/zabbix-server  --timeout=900s && \
+          kubectl -n zabbix wait --for=condition=Available deployment/zabbix-web     --timeout=900s
           rc=$?
           if [ $rc -ne 0 ]; then
             echo "::group::Diagnostico (Zabbix)"
