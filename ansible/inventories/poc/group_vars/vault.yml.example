@@ -6,8 +6,8 @@
 #   ansible-playbook ... --ask-vault-pass
 # No AWX, cadastre como Vault Credential.
 #
-# Credenciais de conexao (chave SSH do Linux, usuario/senha WinRM do Windows)
-# NAO ficam aqui - vao na Machine Credential do AWX.
+# Credenciais de conexao (chave SSH do Linux) NAO ficam aqui - vao na
+# Machine Credential do AWX.
 
 # Exemplo: PSK do Zabbix Agent (so e usado se voce habilitar TLS na role:
 # zabbix_agent_tls_enabled=true). Gere a PSK com: openssl rand -hex 32

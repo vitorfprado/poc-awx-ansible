@@ -13,8 +13,3 @@ all:
       hosts:
         linux-01:
           ansible_host: "<LINUX_PRIVATE_IP>" # output: zabbix_agent_private_ips
-
-    windows:
-      hosts:
-        windows-01:
-          ansible_host: "<WINDOWS_PRIVATE_IP>" # output: zabbix_agent_windows_private_ips

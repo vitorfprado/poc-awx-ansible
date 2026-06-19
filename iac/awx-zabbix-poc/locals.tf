@@ -17,6 +17,11 @@ locals {
     ssm = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
 
+  # Nome do key pair efetivamente usado pelas EC2s: o nome VALIDADO pelo data
+  # source (existencia confirmada na conta/regiao) ou null para acesso so via
+  # SSM. As EC2s usam este local, criando dependencia implicita do lookup.
+  ssh_key_name = var.ssh_key_name != null ? data.aws_key_pair.ssh[0].key_name : null
+
   # Access entries do EKS concedendo admin de cluster aos principals informados.
   # A chave do mapa e a propria ARN (apenas usada pelo for_each do modulo).
   eks_admin_access_entries = {
@@ -38,14 +43,6 @@ locals {
   agents = {
     for i in range(var.agent_count) :
     format("zbx-agent-%02d", i + 1) => {
-      subnet_index = i % length(var.private_subnet_cidrs)
-    }
-  }
-
-  # Mapa dos Zabbix Agents WINDOWS (mesma logica do Linux).
-  windows_agents = {
-    for i in range(var.windows_agent_count) :
-    format("zbx-agent-win-%02d", i + 1) => {
       subnet_index = i % length(var.private_subnet_cidrs)
     }
   }

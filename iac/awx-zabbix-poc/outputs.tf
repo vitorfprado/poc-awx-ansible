@@ -73,22 +73,6 @@ output "zabbix_agent_private_ips" {
   value       = { for k, m in module.zabbix_agent : k => m.private_ip }
 }
 
-output "zabbix_agent_windows_private_ips" {
-  description = "IPs privados das EC2s de Zabbix Agent Windows, indexados pelo nome do agent."
-  value       = { for k, m in module.zabbix_agent_windows : k => m.private_ip }
-}
-
-output "zabbix_agent_windows_instance_ids" {
-  description = "IDs das EC2s de Zabbix Agent Windows."
-  value       = { for k, m in module.zabbix_agent_windows : k => m.instance_id }
-}
-
-output "windows_admin_password" {
-  description = "Senha do Administrator das EC2s Windows (para a Machine Credential do AWX)."
-  value       = try(random_password.windows_admin[0].result, null)
-  sensitive   = true
-}
-
 ###############################################################################
 # Security Groups
 ###############################################################################
@@ -96,9 +80,8 @@ output "windows_admin_password" {
 output "security_group_ids" {
   description = "IDs dos Security Groups criados para as EC2s do Zabbix."
   value = {
-    proxy         = aws_security_group.proxy.id
-    agent         = aws_security_group.agent.id
-    agent_windows = aws_security_group.agent_windows.id
+    proxy = aws_security_group.proxy.id
+    agent = aws_security_group.agent.id
   }
 }
 
@@ -107,8 +90,8 @@ output "security_group_ids" {
 ###############################################################################
 
 output "ssh_key_name" {
-  description = "Nome do key pair SSH usado pelas EC2s (null quando o acesso e somente via SSM)."
-  value       = var.ssh_key_name
+  description = "Nome do key pair SSH (validado por data source) usado pelas EC2s (null quando o acesso e somente via SSM)."
+  value       = local.ssh_key_name
 }
 
 output "zabbix_server_address" {

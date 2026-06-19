@@ -182,56 +182,20 @@ resource "aws_vpc_security_group_egress_rule" "agent_all" {
   ip_protocol       = "-1"
 }
 
-# --- SG do Agent WINDOWS -----------------------------------------------------
-# Igual ao agent Linux, mas com WinRM (5986) no lugar do SSH (22) como porta de
-# administracao usada pelo AWX/Ansible.
-resource "aws_security_group" "agent_windows" {
-  name_prefix = "${local.name_prefix}-zbx-agent-win-"
-  description = "Zabbix Agent Windows: WinRM interno (EKS/AWX) e comunicacao com o Proxy"
-  vpc_id      = module.vpc.vpc_id
+###############################################################################
+# Key pair SSH (existente)
+#
+# Lookup do key pair JA EXISTENTE na conta/regiao. Serve de validacao em
+# plan-time: se var.ssh_key_name nao existir, o terraform falha aqui (cedo e com
+# mensagem clara) em vez de so quebrar no apply ao criar as EC2s. As EC2s
+# referenciam local.ssh_key_name (derivado deste data source) para herdar a
+# dependencia implicita. Quando ssh_key_name = null, nenhum lookup e feito e as
+# EC2s sobem so com SSM Session Manager.
+###############################################################################
 
-  tags = merge(local.common_tags, { Name = "${local.name_prefix}-zbx-agent-win" })
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# WinRM HTTPS a partir dos nodes/pods do EKS (AWX executa o Ansible via WinRM).
-resource "aws_vpc_security_group_ingress_rule" "agent_win_winrm_from_eks" {
-  security_group_id            = aws_security_group.agent_windows.id
-  description                  = "WinRM HTTPS a partir do EKS/AWX"
-  from_port                    = 5986
-  to_port                      = 5986
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = module.eks.cluster_security_group_id
-}
-
-# Proxy faz checks passivos no Agent Windows na porta do Agent.
-resource "aws_vpc_security_group_ingress_rule" "agent_win_from_proxy" {
-  security_group_id            = aws_security_group.agent_windows.id
-  description                  = "Proxy para o Zabbix Agent Windows (checks passivos)"
-  from_port                    = var.zabbix_agent_port
-  to_port                      = var.zabbix_agent_port
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.proxy.id
-}
-
-resource "aws_vpc_security_group_egress_rule" "agent_win_all" {
-  security_group_id = aws_security_group.agent_windows.id
-  description       = "Saida geral (NAT) e comunicacao com o Proxy"
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
-}
-
-# Proxy precisa aceitar tambem os Agents Windows ativos (-> Proxy:10051).
-resource "aws_vpc_security_group_ingress_rule" "proxy_from_windows_agents" {
-  security_group_id            = aws_security_group.proxy.id
-  description                  = "Zabbix Agents Windows ativos para o Proxy"
-  from_port                    = var.zabbix_proxy_port
-  to_port                      = var.zabbix_proxy_port
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.agent_windows.id
+data "aws_key_pair" "ssh" {
+  count    = var.ssh_key_name != null ? 1 : 0
+  key_name = var.ssh_key_name
 }
 
 ###############################################################################
@@ -247,7 +211,7 @@ module "zabbix_proxy" {
   vpc_id    = module.vpc.vpc_id
   subnet_id = module.vpc.private_subnet_ids[0]
 
-  key_name = var.ssh_key_name
+  key_name = local.ssh_key_name
 
   # AL2023 exige root >= 30GB (tamanho do snapshot da AMI).
   root_volume_size = var.ec2_root_volume_size
@@ -278,7 +242,7 @@ module "zabbix_agent" {
   vpc_id    = module.vpc.vpc_id
   subnet_id = module.vpc.private_subnet_ids[each.value.subnet_index]
 
-  key_name = var.ssh_key_name
+  key_name = local.ssh_key_name
 
   # AL2023 exige root >= 30GB (tamanho do snapshot da AMI).
   root_volume_size = var.ec2_root_volume_size
@@ -290,63 +254,4 @@ module "zabbix_agent" {
   iam_role_policy_arns        = local.ssm_policy_arns
 
   tags = merge(local.common_tags, { Role = "zabbix-agent" })
-}
-
-###############################################################################
-# EC2s dos Zabbix Agents WINDOWS (Windows Server 2022)
-###############################################################################
-
-# Senha do Administrator (gerada; nao versionada). Exposta no output sensivel
-# windows_admin_password para cadastrar na Machine Credential do AWX.
-resource "random_password" "windows_admin" {
-  count = var.windows_agent_count > 0 ? 1 : 0
-
-  length           = 24
-  min_lower        = 2
-  min_upper        = 2
-  min_numeric      = 2
-  min_special      = 2
-  override_special = "!@#%^*-_=+"
-}
-
-data "aws_ami" "windows_2022" {
-  count = var.windows_agent_count > 0 ? 1 : 0
-
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["Windows_Server-2022-English-Full-Base-*"]
-  }
-}
-
-module "zabbix_agent_windows" {
-  source = "github.com/vitorfprado/terraform-aws-modules//ec2?ref=main"
-
-  for_each = local.windows_agents
-
-  name          = "${local.name_prefix}-${each.key}"
-  ami_id        = data.aws_ami.windows_2022[0].id
-  instance_type = var.windows_agent_instance_type
-
-  vpc_id    = module.vpc.vpc_id
-  subnet_id = module.vpc.private_subnet_ids[each.value.subnet_index]
-
-  key_name         = var.ssh_key_name
-  root_volume_size = var.windows_ec2_root_volume_size
-
-  # Define a senha do Administrator e habilita o WinRM (HTTPS) para o Ansible.
-  user_data = templatefile("${path.module}/templates/windows-agent-userdata.ps1.tftpl", {
-    admin_password = random_password.windows_admin[0].result
-  })
-  user_data_replace_on_change = true
-
-  create_security_group  = false
-  vpc_security_group_ids = [aws_security_group.agent_windows.id]
-
-  create_iam_instance_profile = true
-  iam_role_policy_arns        = local.ssm_policy_arns
-
-  tags = merge(local.common_tags, { Role = "zabbix-agent", OS = "windows" })
 }

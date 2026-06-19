@@ -44,10 +44,6 @@ proxy_instance_type = "t3.micro"
 agent_instance_type = "t3.micro"
 agent_count         = 1 # agents Linux
 
-# Agents Windows (Windows Server 2022). 0 desabilita.
-windows_agent_count         = 1
-windows_agent_instance_type = "t3.small"
-
 # --- Conectividade Zabbix ----------------------------------------------------
 zabbix_server_address = "zabbix.exemplo.interno" # IP ou hostname do Server central
 zabbix_server_cidr    = "10.10.0.0/16"           # null = sem regra de egress dedicada

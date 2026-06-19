@@ -1,7 +1,7 @@
 ---
-# Variaveis comuns a Linux e Windows.
+# Variaveis comuns ao proxy e ao agent Linux.
 
-# Versao do Zabbix (controla pacote/MSI/repo). Troque AQUI para mudar de versao.
+# Versao do Zabbix (controla pacote/repo). Troque AQUI para mudar de versao.
 zabbix_version: "7.0"
 
 # Zabbix Server CENTRAL: o PROXY reporta para ele (ex.: DNS do NLB do server).

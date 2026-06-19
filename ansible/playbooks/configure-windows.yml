@@ -1,6 +1,0 @@
----
-- name: Configurar Zabbix Agent 2 (Windows)
-  hosts: windows
-  gather_facts: true
-  roles:
-    - zabbix_agent_windows

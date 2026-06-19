@@ -1,6 +1,5 @@
 ---
-# Collections necessarias. No AWX, use uma Execution Environment que as contenha
-# (ou sincronize por este arquivo no Project). O Linux usa so ansible.builtin.
-collections:
-  - name: ansible.windows
-    version: ">=2.0.0"
+# Sem collections externas obrigatorias: o fluxo (proxy + agent Linux) usa apenas
+# ansible.builtin, ja incluso no Ansible. Mantido como placeholder para futuras
+# collections (ex.: community.zabbix, se um dia o cadastro no Zabbix for automatizado).
+collections: []

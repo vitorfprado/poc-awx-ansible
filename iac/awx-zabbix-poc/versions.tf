@@ -11,10 +11,5 @@ terraform {
       source  = "hashicorp/tls"
       version = ">= 4.0"
     }
-    # Senha do Administrator das EC2s Windows.
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.5"
-    }
   }
 }

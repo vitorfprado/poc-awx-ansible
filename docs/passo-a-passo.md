@@ -1,11 +1,19 @@
-# Passo a passo — usar e validar a POC
+# Passo a passo — usar e validar a POC (Linux)
 
-Guia prático para **usar** a POC (acessar AWX e Zabbix) e **validar a ideia**
-(agent → proxy → server → ver os dados). Para entender *por que* cada coisa
-funciona, veja [como-funciona.md](como-funciona.md).
+Guia prático do **dia a dia**: você **já tem** o Zabbix Server e o AWX rodando no
+cluster, e vai **adicionar as máquinas de um cliente** (1 EC2 de Proxy + 1 EC2 de Agent
+Linux), configurá-las **via AWX/Ansible** e ver os dados chegando no Zabbix. Para
+entender *por que* cada coisa funciona, veja [como-funciona.md](como-funciona.md).
 
-> A infra (Terraform) e o cluster (AWX, Zabbix Server, addons) já estão de pé. Aqui o
-> foco é **operar e validar**, não subir.
+```
+   Agent Linux (EC2) ─► Zabbix Proxy (EC2) ─► Zabbix Server (EKS) ─► UI
+                                                  ▲
+                                        AWX (EKS) ┘  configura proxy e agent via Ansible
+```
+
+> **Premissa:** infra (Terraform), cluster, AWX e Zabbix Server **já estão de pé**. Aqui o
+> foco é o fluxo recorrente: **provisionar as EC2s do cliente → configurar via AWX →
+> cadastrar no Zabbix → validar**.
 
 ## Sumário
 1. [Pré-requisitos](#1-pré-requisitos)
@@ -48,8 +56,6 @@ No diretório do consumer (`iac/awx-zabbix-poc`):
 terraform output                              # visão geral
 terraform output -raw zabbix_proxy_private_ip
 terraform output -json zabbix_agent_private_ips          # agents Linux
-terraform output -json zabbix_agent_windows_private_ips  # agents Windows
-terraform output -raw windows_admin_password             # senha do Administrator (sensível)
 ```
 
 O **endereço do Zabbix Server** (para o proxy) é o **DNS do NLB interno**:
@@ -58,7 +64,7 @@ kubectl -n zabbix get svc zabbix-server \
   -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'; echo
 ```
 
-Anote: IP do proxy, IPs dos agents (Linux e Windows), senha do Windows, DNS do NLB.
+Anote: IP do proxy, IP do agent Linux, DNS do NLB.
 
 ## 4. Acessar o AWX
 
@@ -96,55 +102,48 @@ Os playbooks ficam em `ansible/playbooks/`.
 |---|---|---|
 | `proxy` | `proxy-01` | `ansible_host: <IP do proxy>` |
 | `linux` | `linux-01` | `ansible_host: <IP do agent Linux>` |
-| `windows` | `windows-01` | `ansible_host: <IP do agent Windows>` |
 
 > Os IPs vêm do passo 3. Mantenha o inventário só com **nome + IP** (sem segredo).
 
-### 6.3 Credentials
+### 6.3 Credential
 - **SSH (proxy + Linux) — Machine Credential:** tipo *Machine*, **Username** `ec2-user`,
   cole a **SSH Private Key** do key pair das EC2s, **Privilege Escalation** = `sudo`.
-- **Windows — Machine Credential:** tipo *Machine*, **Username** `Administrator`,
-  **Password** = `windows_admin_password` (output do Terraform, passo 3). Sem chave.
 - **(Opcional) Vault Credential:** só se usar TLS/PSK — a senha do Ansible Vault.
 
-> Por que credenciais diferentes? Proxy e Linux conectam por **SSH (chave)**; Windows
-> por **WinRM (usuário+senha)**.
+> Proxy e agent Linux conectam pela **mesma** credencial SSH (chave).
 
 ### 6.4 Job Templates
-**Resources → Templates → Add → Job Template** (associe Inventory + a(s) credencial(is)):
+**Resources → Templates → Add → Job Template** (associe Inventory + credencial SSH):
 
-| Template | Playbook | Credenciais |
+| Template | Playbook | Credencial |
 |---|---|---|
-| `zbx-configure-all` | `ansible/playbooks/configure-all.yml` | SSH **+** Windows (+ Vault se houver) |
+| `zbx-configure-all` | `ansible/playbooks/configure-all.yml` | SSH (+ Vault se houver) |
 | `zbx-configure-proxy` | `ansible/playbooks/configure-proxy.yml` | SSH |
 | `zbx-configure-linux` | `ansible/playbooks/configure-linux.yml` | SSH |
-| `zbx-configure-windows` | `ansible/playbooks/configure-windows.yml` | Windows |
-| `zbx-validate` | `ansible/playbooks/validate.yml` | SSH + Windows |
+| `zbx-validate` | `ansible/playbooks/validate.yml` | SSH |
 
 - No template do **proxy** (ou no `configure-all`), informe o **Server central** em
-  **Variables/Survey** (os agents não precisam — derivam o IP do proxy do inventário):
+  **Variables/Survey** (o agent não precisa — deriva o IP do proxy do inventário):
   ```yaml
   zabbix_server_address: "<DNS do NLB do Zabbix Server, passo 3>"
   ```
-- Num Job Template, você pode **anexar mais de uma Machine Credential** (SSH e Windows) —
-  o AWX aplica cada uma conforme o host.
 
 ## 7. Rodar os playbooks
 
-1. **Launch** do `zbx-configure-all` → instala/configura **proxy → agents Linux →
-   agents Windows**. Ao final, os serviços estão rodando e os `.conf` escritos.
-2. **Launch** do `zbx-validate` → confere serviços, portas e conectividade
-   (agent → proxy, proxy → server).
+1. **Launch** do `zbx-configure-all` → instala/configura **proxy → agent Linux**. Ao
+   final, os serviços estão rodando e os `.conf` escritos.
+2. **Launch** do `zbx-validate` → confere serviços e arquivos de config (proxy + agent).
 
-> Dica de sanidade antes: ad-hoc `ansible proxy:linux -m ansible.builtin.ping` (SSH) e
-> `ansible windows -m ansible.windows.win_ping` (WinRM) confirmam a conexão.
+> Dica de sanidade antes: ad-hoc `ansible proxy:linux -m ansible.builtin.ping` (SSH)
+> confirma a conexão.
 
 Depois disto: os hosts estão **prontos**, mas **ainda não aparecem** no Zabbix — falta
 o cadastro manual (passo 8).
 
 ## 8. Cadastros manuais no Zabbix
 
-Na UI (passo 5). Aqui é onde você **aprende o fluxo** — nada é automatizado.
+Na UI (passo 5). Aqui é onde você **aprende o fluxo** — nada é automatizado (automatizar
+esse cadastro via API do Zabbix fica como **próximo passo** da POC).
 
 ### 8.1 Cadastrar o Proxy
 **Data collection → Proxies → Create proxy**:
@@ -152,39 +151,39 @@ Na UI (passo 5). Aqui é onde você **aprende o fluxo** — nada é automatizado
 - **Proxy mode:** **Active** (configuramos `ProxyMode=0`; o proxy se conecta ao server).
 - ✅ Em alguns minutos o proxy aparece com *last seen* recente.
 
-### 8.2 Cadastrar os Hosts (agents)
-**Data collection → Hosts → Create host**, um para cada agent:
+### 8.2 Cadastrar o Host (agent)
+**Data collection → Hosts → Create host**:
 
-| Campo | Agent Linux (`linux-01`) | Agent Windows (`windows-01`) |
-|---|---|---|
-| **Host name** | `linux-01` (= `Hostname` do `.conf`) | `windows-01` (= `Hostname` do `.conf`) |
-| **Templates** | `Linux by Zabbix agent` | `Windows by Zabbix agent` |
-| **Host groups** | ex.: `POC/Linux` | ex.: `POC/Windows` |
-| **Interfaces → Agent** | IP do agent : `10050` | IP do agent : `10050` |
-| **Monitored by** | **Proxy** → `proxy-01` | **Proxy** → `proxy-01` |
+| Campo | Agent Linux (`linux-01`) |
+|---|---|
+| **Host name** | `linux-01` (= `Hostname` do `.conf`) |
+| **Templates** | `Linux by Zabbix agent` |
+| **Host groups** | ex.: `POC/Linux` |
+| **Interfaces → Agent** | IP do agent : `10050` |
+| **Monitored by** | **Proxy** → `proxy-01` |
 
 - **Por que "Monitored by proxy":** diz ao server que **quem coleta é o proxy**, não o
   server direto.
-- **Templates já existem** — você não cria; o de Windows é o `Windows by Zabbix agent`.
+- **Templates já existem** — você não cria; o de Linux é o `Linux by Zabbix agent`.
 
 ### 8.3 (Se usar checks ativos)
-Para o agent **enviar** ao proxy (ativo), use o template `... by Zabbix agent active`.
+Para o agent **enviar** ao proxy (ativo), use o template `Linux by Zabbix agent active`.
 Configuramos `Server` **e** `ServerActive` no `.conf`, então os dois modos funcionam.
 
 ## 9. Validar a ideia
 
-1. **Monitoring → Hosts:** a coluna **ZBX** fica **verde** (proxy e agents coletando).
+1. **Monitoring → Hosts:** a coluna **ZBX** fica **verde** (proxy e agent coletando).
 2. **Monitoring → Latest data:** filtre por host → veja métricas (CPU, memória, disco).
 3. **Monitoring → Hosts → Proxies:** o `proxy-01` aparece *online*.
-4. Confirme o caminho completo: **agent (Linux e Windows) → proxy-01 → zabbix-server →
-   dados na UI**. Se chegou aqui, a POC está **validada de ponta a ponta**.
+4. Confirme o caminho completo: **agent (Linux) → proxy-01 → zabbix-server → dados na
+   UI**. Se chegou aqui, a POC está **validada de ponta a ponta**.
 
 Checklist:
 - [ ] `kubectl get pods -n awx` e `-n zabbix` tudo `Running`.
 - [ ] `zbx-configure-all` e `zbx-validate` verdes no AWX.
 - [ ] Proxy `proxy-01` **online**.
-- [ ] `linux-01` (Linux) e `windows-01` (Windows) com **ZBX verde**.
-- [ ] Métricas em **Latest data** dos dois.
+- [ ] `linux-01` com **ZBX verde**.
+- [ ] Métricas em **Latest data**.
 
 ## 10. Troubleshooting
 
@@ -192,7 +191,6 @@ Checklist:
 |---|---|
 | Proxy não fica online | `Proxy name` ≠ `Hostname` do proxy; proxy não alcança o NLB:10051 |
 | Host `ZBX` vermelho | IP/porta da Interface; SG bloqueando 10050; serviço do agent parado |
-| Agent Windows não conecta (AWX) | WinRM/5986; senha errada na credencial; `user_data` ainda rodando (espere o boot) |
 | Agent Linux não conecta (AWX) | chave SSH errada; SG não libera 22 a partir do EKS |
 | Nada em Latest data | host sem **template**, ou ainda dentro do 1º intervalo de coleta |
 
@@ -204,12 +202,8 @@ kubectl -n zabbix logs deploy/zabbix-server | tail -50
 # Proxy / Agent Linux (via SSM ou SSH na EC2)
 sudo tail -50 /var/log/zabbix/zabbix_proxy.log
 sudo tail -50 /var/log/zabbix/zabbix_agent2.log
-
-# Agent Windows (no host, PowerShell)
-Get-Content "C:\Program Files\Zabbix Agent 2\zabbix_agent2.log" -Tail 50
-Get-Service "Zabbix Agent 2"
 ```
 
-> Para conectar nas EC2s sem expor SSH/RDP à internet, use o **SSM Session Manager**
+> Para conectar nas EC2s sem expor SSH à internet, use o **SSM Session Manager**
 > (todas as EC2s têm o instance profile de SSM):
 > `aws ssm start-session --target <instance-id>`.

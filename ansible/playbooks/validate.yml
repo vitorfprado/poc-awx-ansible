@@ -32,21 +32,3 @@
         path: "{{ zabbix_agent_config_path }}"
       register: linux_cfg
       failed_when: not linux_cfg.stat.exists
-
-- name: Validar Zabbix Agent (Windows)
-  hosts: windows
-  gather_facts: false
-  tasks:
-    - name: Servico rodando
-      ansible.windows.win_service_info:
-        name: "{{ zabbix_agent_service_name }}"
-      register: win_svc
-      failed_when: >-
-        (win_svc.services | length == 0) or
-        (win_svc.services[0].state != 'running')
-
-    - name: Arquivo de configuracao presente
-      ansible.windows.win_stat:
-        path: "{{ zabbix_agent_config_path }}"
-      register: win_cfg
-      failed_when: not win_cfg.stat.exists
