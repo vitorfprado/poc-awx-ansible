@@ -1,7 +1,3 @@
-# Inventario real e segredos: preencher a partir dos arquivos .example
-inventories/poc/hosts.yml
-inventories/poc/group_vars/vault.yml
-
 # Chaves SSH e artefatos locais (NUNCA versionar chave privada)
 *.pem
 *.key
