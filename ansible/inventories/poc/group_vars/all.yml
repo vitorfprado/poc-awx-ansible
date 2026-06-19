@@ -1,14 +1,10 @@
 ---
-# Variaveis comuns ao proxy e ao agent Linux.
+# Variaveis GERAIS/FIXAS, comuns ao proxy e ao agent Linux.
+# Especificos de ambiente (IP do server, IP do proxy) ficam nos group_vars
+# de cada grupo (proxy.yml / linux.yml).
 
 # Versao do Zabbix (controla pacote/repo). Troque AQUI para mudar de versao.
 zabbix_version: "7.0"
 
-# Zabbix Server CENTRAL: o PROXY reporta para ele (ex.: DNS do NLB do server).
-zabbix_server_address: "CHANGE_ME_zabbix_server"
+# Porta padrao do Zabbix Server/Proxy (fixa).
 zabbix_server_port: 10051
-
-# Os AGENTS reportam para o PROXY. O IP do proxy e derivado do inventario
-# (primeiro host do grupo proxy) - sem hardcode.
-zabbix_agent_server: "{{ hostvars[groups['proxy'][0]].ansible_host }}"
-zabbix_agent_server_active: "{{ hostvars[groups['proxy'][0]].ansible_host }}"

@@ -5,6 +5,10 @@ ansible_connection: ssh
 ansible_user: ec2-user
 ansible_python_interpreter: /usr/bin/python3
 
+# Zabbix Server CENTRAL para o qual este proxy reporta (DNS do NLB do server).
+# Preencher no AWX (group vars do grupo proxy) com o endereco real.
+zabbix_server_address: "CHANGE_ME_zabbix_server"
+
 # Pacote / servico / config do Zabbix Proxy (SQLite).
 zabbix_proxy_package: zabbix-proxy-sqlite3
 zabbix_proxy_service_name: zabbix-proxy
