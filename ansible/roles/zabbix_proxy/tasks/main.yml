@@ -43,8 +43,15 @@
     mode: "0640"
   notify: restart zabbix proxy
 
-- name: Habilitar e iniciar o servico
+- name: Habilitar o servico
   ansible.builtin.systemd:
     name: "{{ zabbix_proxy_service_name }}"
     enabled: true
+
+- name: Flush handlers antes do start para evitar restart em cima de start
+  ansible.builtin.meta: flush_handlers
+
+- name: Garantir que o servico esta rodando
+  ansible.builtin.systemd:
+    name: "{{ zabbix_proxy_service_name }}"
     state: started
