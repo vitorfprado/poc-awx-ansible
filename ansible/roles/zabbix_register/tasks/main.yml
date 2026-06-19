@@ -3,7 +3,7 @@
 # entao adicionar uma EC2 ao inventario ja a registra na proxima execucao.
 
 - name: Garantir o host group
-  community.zabbix.zabbix_hostgroup:
+  community.zabbix.zabbix_group:
     host_groups:
       - "{{ zabbix_register_host_group }}"
     state: present
